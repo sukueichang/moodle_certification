@@ -1,0 +1,25 @@
+# Moodle certification plugin — tracked: local_tm_certification + project docs
+
+# OS / editor
+Thumbs.db
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Build / zip artifacts
+*.zip
+/_zip_staging/
+/version/
+
+# Large / binary media (keep HTML wireframes)
+*.png
+*.PNG
+*.jpg
+*.jpeg
+*.pptx
+
+# Secrets / local-only
+/links.md
+*.env
+credentials.json

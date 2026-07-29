@@ -1,0 +1,103 @@
+/* local_tm_certification — Techman brand shell */
+:root {
+  --tm-blue: #005f7e;
+  --tm-green: #74b42a;
+  --tm-line: #d5e0e5;
+  --tm-muted: #5a6f78;
+  --tm-bg: #f0f4f6;
+}
+
+.tm-cert-dash {
+  max-width: 1100px;
+}
+
+.tm-cert-page-header h2,
+.tm-cert-cover h2 {
+  color: var(--tm-blue);
+  margin-top: 0;
+}
+
+.tm-cert-cover {
+  background: #fff;
+  border: 1px solid var(--tm-line);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+.tm-cert-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.tm-cert-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: #e3f0f4;
+  color: var(--tm-blue);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.tm-cert-meta {
+  color: var(--tm-muted);
+  margin-bottom: 0;
+}
+
+.tm-cert-toolbar {
+  margin-bottom: 16px;
+}
+
+.tm-cert-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 860px) {
+  .tm-cert-grid {
+    grid-template-columns: 1.2fr 1fr;
+  }
+}
+
+.tm-cert-card {
+  background: #fff;
+  border: 1px solid var(--tm-line);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.tm-cert-card h3 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: var(--tm-blue);
+}
+
+.tm-cert-card .btn.disabled,
+.tm-cert-toolbar .btn.disabled {
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.tm-cert-home-dashboard-wrapper {
+  margin: 1rem 0;
+}
+
+.tm-cert-home-card {
+  background: #fff;
+  border: 1px solid var(--tm-line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.tm-cert-home-title {
+  color: var(--tm-blue);
+  margin: 0 0 0.5rem 0;
+}
+
+.tm-cert-home-actions {
+  margin-top: 0.75rem;
+}
