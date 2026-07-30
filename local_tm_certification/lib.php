@@ -183,11 +183,12 @@ function local_tm_certification_extend_navigation(global_navigation $nav): void 
     }
 
     require_once(__DIR__ . '/classes/permissions_manager.php');
-    if (!\local_tm_certification\permissions_manager::user_can_view_plugin()) {
-        return;
-    }
-    if (!\local_tm_certification\permissions_manager::is_dashboard_globally_enabled()
-        && !\local_tm_certification\permissions_manager::user_can_manage()) {
+    $canaccess = is_siteadmin()
+        || \local_tm_certification\permissions_manager::user_can_manage()
+        || \local_tm_certification\permissions_manager::user_can_approve()
+        || \local_tm_certification\permissions_manager::user_can_instruct()
+        || \local_tm_certification\permissions_manager::user_can_examinee();
+    if (!$canaccess) {
         return;
     }
 
@@ -217,42 +218,22 @@ function local_tm_certification_extend_navigation(global_navigation $nav): void 
         null,
         'tm_certification_certs'
     );
+
+    if (\local_tm_certification\permissions_manager::user_can_manage()
+        || \local_tm_certification\permissions_manager::user_can_approve()) {
+        $node->add(
+            get_string('nav_sessions', 'local_tm_certification'),
+            new moodle_url('/local/tm_certification/admin/sessions.php'),
+            navigation_node::TYPE_CUSTOM,
+            null,
+            'tm_certification_sessions'
+        );
+    }
 }
 
 /**
- * Also expose under Site administration for managers.
+ * Keep settings navigation untouched to avoid affecting site administration tree.
  */
 function local_tm_certification_extend_settings_navigation(settings_navigation $settings, context $context): void {
-    global $PAGE;
-
-    if (!isloggedin() || isguestuser()) {
-        return;
-    }
-    require_once(__DIR__ . '/classes/permissions_manager.php');
-    if (!\local_tm_certification\permissions_manager::user_can_manage()) {
-        return;
-    }
-
-    if ($context->contextlevel !== CONTEXT_SYSTEM && empty($PAGE->category)) {
-        // Still allow on frontpage/system settings trees when available.
-    }
-
-    $root = $settings->get('root');
-    if (!$root) {
-        return;
-    }
-    $node = $root->add(
-        get_string('pluginname', 'local_tm_certification'),
-        new moodle_url('/local/tm_certification/index.php'),
-        navigation_node::TYPE_SETTING,
-        null,
-        'tm_certification_settings_nav'
-    );
-    $node->add(
-        get_string('nav_dashboard', 'local_tm_certification'),
-        new moodle_url('/local/tm_certification/index.php'),
-        navigation_node::TYPE_SETTING,
-        null,
-        'tm_certification_settings_dash'
-    );
+    return;
 }

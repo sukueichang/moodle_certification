@@ -4,7 +4,8 @@ Moodle local plugin for Techman certification exam operations.
 
 ## Status
 
-- **Release:** 0.1.0 (P1 scaffold)
+- **Release:** 0.2.0 (P2 sessions + enrol — pending test)
+- **GitHub:** https://github.com/sukueichang/moodle_certification (private)
 - Spec: [`../moodle_certification_plugin_prd.md`](../moodle_certification_plugin_prd.md)
 - Dashboard wireframe: [`../docs/dashboard_preview.html`](../docs/dashboard_preview.html)
 

@@ -3,7 +3,9 @@
 > **文件角色：** 本外掛產品／技術規格的 Single Source of Truth  
 > **建議元件名稱：** `local_tm_certification`  
 > **部署路徑：** `{moodle}/local/tm_certification/`  
-> **現況：** **P1 已驗收**（`local_tm_certification` 0.1.1：權限指派、Dashboard 開關、首頁／我的首頁注入、三角色殼、我的證書頁殼）。下一階段：**P2 場次與帳號**。  
+> **現況：** **P3 已驗收**（0.3.0）；**P4 進行中**（批次上傳＋考生編號）。已知問題：左側「檢定管理」快捷入口未顯示（BUG-20260729-04，暫緩）。GitHub：https://github.com/sukueichang/moodle_certification  
+> **P1：** 已驗收（0.1.1）  
+
 > **線框預覽：** [`docs/dashboard_preview.html`](docs/dashboard_preview.html)  
 > **參考外掛：** `Moodle plugin v2` → `local_tm_course`（可 Copy-adapt 骨架，**不** runtime 依賴）  
 > **維護：** 開發完成後上架 GitHub；驗收訊號（`ok`／`測試無誤`）後才 commit／push／更新 PR  
@@ -31,9 +33,10 @@
 | :--- | :--- | :---: |
 | **P0 規格** | PRD 收斂、Dashboard 線框、與 v2 重用評估 | **完成** |
 | **P1 骨架與權限** | 外掛 scaffold、capabilities、語系、權限指派設定、Dashboard 開關與三角色殼；首頁／我的首頁注入（0.1.1） | **已驗收** |
-| **P2 場次與帳號** | 場次 CRUD、Email 建帳／連結、Moodle enrol | 未開始 |
-| **P3 申請＋審核** | 講師申請、待審、核准後建場次／出缺席時段／名冊 | 未開始 |
-| **P4 批次＋考生編號** | 公版上傳、三情境、申請時帶入＋臨時安插 | 未開始 |
+| **P2 場次與帳號** | 場次 CRUD、Email 建帳／連結、Moodle enrol | **完成（待整合回歸）** |
+| **P2.2 場次規則重構** | 固定命名、考場獨立維護、講師等級授權、後台課程對照 | **完成（待測）** |
+| **P3 申請＋審核** | 講師申請、待審、核准後建場次／出缺席時段／名冊 | **已驗收（0.3.0）** |
+| **P4 批次＋考生編號** | 公版上傳、三情境、申請時帶入＋臨時安插 | **進行中** |
 | **P5 評量** | 筆試門檻、術科輸入、出缺席〔參〕／〔缺〕連動 | 未開始 |
 | **P6 證書與儀表板** | 雙證書、我的證書頁、封面等級、講師效期 Cron | 未開始 |
 | **P7 通知＋上架** | 通知、打包、GitHub 發行與維護流程文件 | 未開始 |
@@ -45,6 +48,7 @@
 3. **每階段必測權限：** 僅被指派 capability 者可用；未授權帳號不可見、不可操作。  
 4. 升版走 Site administration → Notifications；必要時 purge caches。  
 5. 動到 DB／AJAX：確認 upgrade、sesskey、context、capability。  
+6. XMLDB 規則檢查：避免 `CHAR NOT NULL DEFAULT ''`，避免升級 debugging 訊息。
 
 **分角色建議測項：**
 
@@ -334,6 +338,7 @@ Admin 可設定：
 * 品牌色（與課程外掛一致，可沿用）：Techman Blue `#005f7e`、Green `#74b42a`。  
 * Moodle XMLDB：表名 ≤ 28 字元；避免 `CHAR NOT NULL DEFAULT ''`。  
 * 出缺席／通知失敗不阻斷成績儲存與核准主流程（記 log／警告即可）。  
+* RD 流程與缺陷文件：`docs/RD_DEVELOPMENT_WORKFLOW.md`、`docs/BUGFIX_LOG.md`。  
 
 ---
 
