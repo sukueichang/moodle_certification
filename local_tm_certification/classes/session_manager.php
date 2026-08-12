@@ -13,7 +13,11 @@ require_once(__DIR__ . '/catalog_manager.php');
 
 class session_manager {
 
+    /** Session still running (accepts new examinees until endtime). */
     public const STATUS_OPEN = 1;
+    /** Session finished — visible to instructor, no new examinees. */
+    public const STATUS_ENDED = 0;
+    /** @deprecated Use STATUS_ENDED */
     public const STATUS_CLOSED = 0;
 
     public const LEVEL_BASIC = 'basic';
@@ -29,6 +33,58 @@ class session_manager {
             self::LEVEL_INTERMEDIATE => get_string('level_intermediate', 'local_tm_certification'),
             self::LEVEL_ADVANCED => get_string('level_advanced', 'local_tm_certification'),
         ];
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    public static function status_options(): array {
+        return [
+            self::STATUS_OPEN => get_string('session_status_open', 'local_tm_certification'),
+            self::STATUS_ENDED => get_string('session_status_ended', 'local_tm_certification'),
+        ];
+    }
+
+    /**
+     * Persist auto-end when endtime has passed (immediate effect).
+     */
+    public static function sync_auto_end(\stdClass $session): \stdClass {
+        global $DB;
+        if ((int)$session->status === self::STATUS_OPEN
+            && (int)$session->endtime > 0
+            && (int)$session->endtime <= time()) {
+            $upd = new \stdClass();
+            $upd->id = (int)$session->id;
+            $upd->status = self::STATUS_ENDED;
+            $upd->timemodified = time();
+            $DB->update_record('local_tm_cert_sessions', $upd);
+            $session->status = self::STATUS_ENDED;
+        }
+        return $session;
+    }
+
+    /**
+     * Effective ended: marked ended, or endtime already passed.
+     */
+    public static function is_ended(\stdClass $session): bool {
+        $session = self::sync_auto_end($session);
+        if ((int)$session->status === self::STATUS_ENDED) {
+            return true;
+        }
+        return (int)$session->endtime > 0 && (int)$session->endtime <= time();
+    }
+
+    /**
+     * Whether examinees may still be added (manual / batch).
+     */
+    public static function can_add_examinees(\stdClass $session): bool {
+        return !self::is_ended($session);
+    }
+
+    public static function status_label(\stdClass $session): string {
+        return self::is_ended($session)
+            ? get_string('session_status_ended', 'local_tm_certification')
+            : get_string('session_status_open', 'local_tm_certification');
     }
 
     public static function build_session_name(string $level): string {
@@ -102,6 +158,15 @@ class session_manager {
         }
         if (array_key_exists('status', $data)) {
             $record->status = (int)$data['status'];
+            // Admin set back to in-progress but endtime already past → extend one day.
+            if ((int)$record->status === self::STATUS_OPEN) {
+                $end = array_key_exists('endtime', $data)
+                    ? (int)$data['endtime']
+                    : (int)$existing->endtime;
+                if ($end <= time()) {
+                    $record->endtime = time() + DAYSECS;
+                }
+            }
         }
         $record->timemodified = time();
 
@@ -110,7 +175,34 @@ class session_manager {
 
     public static function get_session(int $id): \stdClass {
         global $DB;
-        return $DB->get_record('local_tm_cert_sessions', ['id' => $id], '*', MUST_EXIST);
+        $session = $DB->get_record('local_tm_cert_sessions', ['id' => $id], '*', MUST_EXIST);
+        return self::sync_auto_end($session);
+    }
+
+    /**
+     * Effective Moodle course for a session: stored courseid, or current level mapping.
+     * Backfills session.courseid when mapping exists and session still has 0.
+     */
+    public static function resolve_courseid(\stdClass $session, bool $backfill = true): int {
+        global $DB;
+
+        $courseid = (int)($session->courseid ?? 0);
+        if ($courseid > 0) {
+            return $courseid;
+        }
+        $mapped = catalog_manager::get_moodle_courseid_for_level((string)$session->certlevel);
+        if ($mapped <= 0) {
+            return 0;
+        }
+        if ($backfill && !empty($session->id)) {
+            $upd = new \stdClass();
+            $upd->id = (int)$session->id;
+            $upd->courseid = $mapped;
+            $upd->timemodified = time();
+            $DB->update_record('local_tm_cert_sessions', $upd);
+            $session->courseid = $mapped;
+        }
+        return $mapped;
     }
 
     /**
@@ -141,21 +233,89 @@ class session_manager {
              LEFT JOIN {local_tm_cert_venues} v ON v.id = s.venueid
                  WHERE " . implode(' AND ', $where) . "
               ORDER BY s.starttime ASC, s.id ASC";
-        return array_values($DB->get_records_sql($sql, $params));
+        $rows = array_values($DB->get_records_sql($sql, $params));
+        foreach ($rows as $i => $row) {
+            $rows[$i] = self::sync_auto_end($row);
+        }
+        // Optional: after auto-end, drop rows that no longer match status filter.
+        if (isset($filters['status'])) {
+            $want = (int)$filters['status'];
+            $rows = array_values(array_filter($rows, static function(\stdClass $s) use ($want): bool {
+                return (int)$s->status === $want;
+            }));
+        }
+        return $rows;
     }
 
+    /**
+     * Count examinees on a session.
+     * Default: current active roster only (excludes cancelled removals).
+     *
+     * @param int|null $status null = active only; pass a status constant to filter exactly
+     */
     public static function count_enrols(int $sessionid, ?int $status = null): int {
         global $DB;
-        $params = ['sessionid' => $sessionid];
+        require_once(__DIR__ . '/enrolment_manager.php');
+
         if ($status === null) {
-            return (int)$DB->count_records('local_tm_cert_enrols', $params);
+            return (int)$DB->count_records_select(
+                'local_tm_cert_enrols',
+                'sessionid = :sessionid AND status <> :cancelled',
+                [
+                    'sessionid' => $sessionid,
+                    'cancelled' => enrolment_manager::ENROL_CANCELLED,
+                ]
+            );
         }
-        $params['status'] = $status;
-        return (int)$DB->count_records('local_tm_cert_enrols', $params);
+        return (int)$DB->count_records('local_tm_cert_enrols', [
+            'sessionid' => $sessionid,
+            'status' => $status,
+        ]);
     }
 
+    /**
+     * Mark session ended (manual). Auto-end also runs when endtime passes.
+     */
+    public static function end_session(int $id): void {
+        global $DB;
+        $record = new \stdClass();
+        $record->id = $id;
+        $record->status = self::STATUS_ENDED;
+        $record->timemodified = time();
+        $DB->update_record('local_tm_cert_sessions', $record);
+    }
+
+    /**
+     * @deprecated Use end_session()
+     */
     public static function close_session(int $id): void {
-        self::update_session($id, ['status' => self::STATUS_CLOSED]);
+        self::end_session($id);
+    }
+
+    /**
+     * Admin-only: reopen an ended session.
+     * If endtime already passed, extend endtime by one day so auto-end does not flip it back immediately.
+     */
+    public static function reopen_session(int $id): void {
+        global $DB;
+        $session = $DB->get_record('local_tm_cert_sessions', ['id' => $id], '*', MUST_EXIST);
+        $record = new \stdClass();
+        $record->id = $id;
+        $record->status = self::STATUS_OPEN;
+        if ((int)$session->endtime <= time()) {
+            $record->endtime = time() + DAYSECS;
+        }
+        $record->timemodified = time();
+        $DB->update_record('local_tm_cert_sessions', $record);
+    }
+
+    /**
+     * Admin-only: permanently delete session + roster rows.
+     */
+    public static function delete_session(int $id): void {
+        global $DB;
+        $DB->delete_records('local_tm_cert_enrols', ['sessionid' => $id]);
+        $DB->delete_records('local_tm_cert_sessions', ['id' => $id]);
     }
 
     /**
@@ -185,7 +345,7 @@ class session_manager {
             throw new \moodle_exception('error_session_venue_required', 'local_tm_certification');
         }
         $venue = catalog_manager::get_venue($venueid);
-        if (!$venue || (int)$venue->active !== 1 || (string)$venue->certlevel !== $level) {
+        if (!$venue || !catalog_manager::venue_matches_level($venueid, $level)) {
             throw new \moodle_exception('error_session_venue_level_mismatch', 'local_tm_certification');
         }
 
@@ -193,8 +353,19 @@ class session_manager {
         if ($instructorid <= 0) {
             throw new \moodle_exception('error_session_instructor_required', 'local_tm_certification');
         }
-        if (!catalog_manager::instructor_qualified_for_level($instructorid, $level)) {
-            throw new \moodle_exception('error_session_instructor_level_mismatch', 'local_tm_certification');
+        // Expiry / qualification gate only when creating or changing instructor / level
+        // (not when editing unrelated fields on an already-assigned session).
+        $checkinstructorgate = $isnew
+            || array_key_exists('instructorid', $data)
+            || array_key_exists('certlevel', $data);
+        if ($checkinstructorgate) {
+            if (!catalog_manager::instructor_qualified_for_level($instructorid, $level)) {
+                throw new \moodle_exception('error_session_instructor_level_mismatch', 'local_tm_certification');
+            }
+            $lvlstatus = catalog_manager::get_instructor_level_status($instructorid, $level);
+            if ($lvlstatus['status'] === catalog_manager::INSTR_STATUS_EXPIRED) {
+                throw new \moodle_exception('error_session_instructor_expired', 'local_tm_certification');
+            }
         }
     }
 

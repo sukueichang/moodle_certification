@@ -179,5 +179,40 @@ function xmldb_local_tm_certification_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026072908, 'local', 'tm_certification');
     }
 
+    if ($oldversion < 2026073000) {
+        $candtable = new xmldb_table('local_tm_cert_candidates');
+        if (!$dbman->table_exists($candtable)) {
+            $candtable->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $candtable->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $candtable->add_field('candidateid', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, null);
+            $candtable->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $candtable->add_field('createdby', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $candtable->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $candtable->add_key('uq_userid', XMLDB_KEY_UNIQUE, ['userid']);
+            $candtable->add_key('uq_candidateid', XMLDB_KEY_UNIQUE, ['candidateid']);
+            $dbman->create_table($candtable);
+        }
+
+        $learntable = new xmldb_table('local_tm_cert_app_learners');
+        if (!$dbman->table_exists($learntable)) {
+            $learntable->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $learntable->add_field('applicationid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $learntable->add_field('email', XMLDB_TYPE_CHAR, '100', null, XMLDB_NOTNULL, null, null);
+            $learntable->add_field('firstname', XMLDB_TYPE_CHAR, '100', null, XMLDB_NOTNULL, null, null);
+            $learntable->add_field('lastname', XMLDB_TYPE_CHAR, '100', null, XMLDB_NOTNULL, null, null);
+            $learntable->add_field('institution', XMLDB_TYPE_CHAR, '255', null, null, null, null);
+            $learntable->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, null, null, null);
+            $learntable->add_field('candidateid', XMLDB_TYPE_CHAR, '20', null, null, null, null);
+            $learntable->add_field('scenario', XMLDB_TYPE_CHAR, '20', null, null, null, null);
+            $learntable->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $learntable->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $learntable->add_index('idx_app', XMLDB_INDEX_NOTUNIQUE, ['applicationid']);
+            $learntable->add_index('idx_email', XMLDB_INDEX_NOTUNIQUE, ['email']);
+            $dbman->create_table($learntable);
+        }
+
+        upgrade_plugin_savepoint(true, 2026073000, 'local', 'tm_certification');
+    }
+
     return true;
 }

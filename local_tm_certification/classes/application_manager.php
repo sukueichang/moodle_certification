@@ -58,11 +58,15 @@ class application_manager {
             throw new \moodle_exception('error_app_venue_required', 'local_tm_certification');
         }
         $venue = catalog_manager::get_venue($venueid);
-        if (!$venue || (int)$venue->active !== 1 || (string)$venue->certlevel !== $level) {
+        if (!$venue || !catalog_manager::venue_matches_level($venueid, $level)) {
             throw new \moodle_exception('error_app_venue_invalid', 'local_tm_certification');
         }
         if (!catalog_manager::instructor_qualified_for_level($instructorid, $level)) {
             throw new \moodle_exception('error_app_instructor_not_qualified', 'local_tm_certification');
+        }
+        $lvlstatus = catalog_manager::get_instructor_level_status($instructorid, $level);
+        if ($lvlstatus['status'] === catalog_manager::INSTR_STATUS_EXPIRED) {
+            throw new \moodle_exception('error_app_instructor_expired', 'local_tm_certification');
         }
         $applicant = $DB->get_record('user', ['id' => $applicantid, 'deleted' => 0]);
         if (!$applicant) {
@@ -101,7 +105,41 @@ class application_manager {
 
     public static function get_application(int $id): \stdClass {
         global $DB;
-        return $DB->get_record('local_tm_cert_apps', ['id' => $id], '*', MUST_EXIST);
+
+        $sql = 'SELECT a.*, v.name AS venuename, v.venuecode,
+                       ua.firstname AS applicant_firstname, ua.lastname AS applicant_lastname,
+                       ua.middlename AS applicant_middlename, ua.alternatename AS applicant_alternatename,
+                       ua.firstnamephonetic AS applicant_firstnamephonetic,
+                       ua.lastnamephonetic AS applicant_lastnamephonetic,
+                       ui.firstname AS instructor_firstname, ui.lastname AS instructor_lastname,
+                       ui.middlename AS instructor_middlename, ui.alternatename AS instructor_alternatename,
+                       ui.firstnamephonetic AS instructor_firstnamephonetic,
+                       ui.lastnamephonetic AS instructor_lastnamephonetic
+                  FROM {local_tm_cert_apps} a
+             LEFT JOIN {local_tm_cert_venues} v ON v.id = a.venueid
+             LEFT JOIN {user} ua ON ua.id = a.applicantid
+             LEFT JOIN {user} ui ON ui.id = a.instructorid
+                 WHERE a.id = :id';
+        $row = $DB->get_record_sql($sql, ['id' => $id], MUST_EXIST);
+        $row->applicant = (object)[
+            'id' => (int)$row->applicantid,
+            'firstname' => $row->applicant_firstname ?? '',
+            'lastname' => $row->applicant_lastname ?? '',
+            'middlename' => $row->applicant_middlename ?? '',
+            'alternatename' => $row->applicant_alternatename ?? '',
+            'firstnamephonetic' => $row->applicant_firstnamephonetic ?? '',
+            'lastnamephonetic' => $row->applicant_lastnamephonetic ?? '',
+        ];
+        $row->instructor = (object)[
+            'id' => (int)$row->instructorid,
+            'firstname' => $row->instructor_firstname ?? '',
+            'lastname' => $row->instructor_lastname ?? '',
+            'middlename' => $row->instructor_middlename ?? '',
+            'alternatename' => $row->instructor_alternatename ?? '',
+            'firstnamephonetic' => $row->instructor_firstnamephonetic ?? '',
+            'lastnamephonetic' => $row->instructor_lastnamephonetic ?? '',
+        ];
+        return $row;
     }
 
     /**
@@ -197,6 +235,9 @@ class application_manager {
             debugging('local_tm_certification approve attendance: ' . $att['warning'], DEBUG_DEVELOPER);
         }
 
+        // Applications no longer carry a roster; discard any legacy draft learners.
+        $DB->delete_records('local_tm_cert_app_learners', ['applicationid' => $appid]);
+
         $now = time();
         $upd = new \stdClass();
         $upd->id = $appid;
@@ -209,6 +250,10 @@ class application_manager {
         $DB->update_record('local_tm_cert_apps', $upd);
 
         $transaction->allow_commit();
+
+        require_once(__DIR__ . '/notification_helper.php');
+        notification_helper::notify_application_approved($appid, $sessionid);
+
         return $sessionid;
     }
 
@@ -229,6 +274,12 @@ class application_manager {
         $upd->timereviewed = $now;
         $upd->reviewedby = (int)$USER->id;
         $DB->update_record('local_tm_cert_apps', $upd);
+
+        // Discard any legacy draft learners (applications no longer carry a roster).
+        $DB->delete_records('local_tm_cert_app_learners', ['applicationid' => $appid]);
+
+        require_once(__DIR__ . '/notification_helper.php');
+        notification_helper::notify_application_rejected($appid);
     }
 
     /**
@@ -240,9 +291,14 @@ class application_manager {
         $all = session_manager::level_options();
         $out = [];
         foreach ($all as $level => $label) {
-            if (catalog_manager::instructor_qualified_for_level($userid, $level)) {
-                $out[$level] = $label;
+            if (!catalog_manager::instructor_qualified_for_level($userid, $level)) {
+                continue;
             }
+            $st = catalog_manager::get_instructor_level_status($userid, $level);
+            if ($st['status'] === catalog_manager::INSTR_STATUS_EXPIRED) {
+                continue;
+            }
+            $out[$level] = $label;
         }
         return $out;
     }

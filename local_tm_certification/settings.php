@@ -122,6 +122,107 @@ if ($hassiteconfig) {
         $ADMIN->add('local_tm_certification_cat', $attmap);
     }
 
+    require_once(__DIR__ . '/classes/assessment_manager.php');
+    $assess = new admin_settingpage('local_tm_certification_assess', get_string('setting_assess_heading', 'local_tm_certification'));
+    if ($ADMIN->fulltree) {
+        $assess->add(new admin_setting_heading(
+            'local_tm_certification_assess_h',
+            get_string('setting_assess_heading', 'local_tm_certification'),
+            get_string('setting_assess_desc', 'local_tm_certification')
+        ));
+        foreach (session_manager::level_options() as $level => $label) {
+            $assess->add(new admin_setting_heading(
+                'local_tm_certification_assess_' . $level,
+                $label,
+                ''
+            ));
+            $assess->add(new admin_setting_configcheckbox(
+                'local_tm_certification/written_enabled_' . $level,
+                get_string('setting_written_enabled', 'local_tm_certification', $label),
+                get_string('setting_written_enabled_desc', 'local_tm_certification'),
+                0
+            ));
+            $courseid = (int)get_config('local_tm_certification', 'mapping_course_' . $level);
+            $quizopts = [0 => get_string('setting_written_quiz_none', 'local_tm_certification')];
+            if ($courseid > 0) {
+                $quizopts += \local_tm_certification\assessment_manager::quiz_options_for_course($courseid);
+            }
+            $assess->add(new admin_setting_configselect(
+                'local_tm_certification/written_quiz_cmid_' . $level,
+                get_string('setting_written_quiz', 'local_tm_certification', $label),
+                '',
+                0,
+                $quizopts
+            ));
+            $assess->add(new admin_setting_configtext(
+                'local_tm_certification/written_pass_' . $level,
+                get_string('setting_written_pass', 'local_tm_certification', $label),
+                get_string('setting_written_pass_desc', 'local_tm_certification'),
+                '60',
+                PARAM_FLOAT
+            ));
+            $assess->add(new admin_setting_configtext(
+                'local_tm_certification/practical_pass_' . $level,
+                get_string('setting_practical_pass', 'local_tm_certification', $label),
+                get_string('setting_practical_pass_desc', 'local_tm_certification'),
+                '90',
+                PARAM_FLOAT
+            ));
+        }
+        $assess->add(new admin_setting_heading(
+            'local_tm_certification_assess_status_h',
+            get_string('setting_attendance_status_heading', 'local_tm_certification'),
+            get_string('setting_attendance_status_desc', 'local_tm_certification')
+        ));
+        $assess->add(new admin_setting_configtext(
+            'local_tm_certification/attendance_statusid_present',
+            get_string('setting_attendance_statusid_present', 'local_tm_certification'),
+            get_string('setting_attendance_statusid_present_desc', 'local_tm_certification'),
+            '0',
+            PARAM_INT
+        ));
+        $assess->add(new admin_setting_configtext(
+            'local_tm_certification/attendance_statusid_absent',
+            get_string('setting_attendance_statusid_absent', 'local_tm_certification'),
+            get_string('setting_attendance_statusid_absent_desc', 'local_tm_certification'),
+            '0',
+            PARAM_INT
+        ));
+    }
+    if (!$ADMIN->locate('local_tm_certification_assess')) {
+        $ADMIN->add('local_tm_certification_cat', $assess);
+    }
+
+    $instrvalidity = new admin_settingpage(
+        'local_tm_certification_instr_validity',
+        get_string('setting_instr_validity_heading', 'local_tm_certification')
+    );
+    if ($ADMIN->fulltree) {
+        $instrvalidity->add(new admin_setting_heading(
+            'local_tm_certification_instr_validity_h',
+            get_string('setting_instr_validity_heading', 'local_tm_certification'),
+            get_string('setting_instr_validity_desc', 'local_tm_certification')
+        ));
+        $instrvalidity->add(new admin_setting_configcheckbox(
+            'local_tm_certification/instructor_extend_by_teaching',
+            get_string('setting_instr_extend_teaching', 'local_tm_certification'),
+            get_string('setting_instr_extend_teaching_desc', 'local_tm_certification'),
+            0
+        ));
+        foreach (session_manager::level_options() as $level => $label) {
+            $instrvalidity->add(new admin_setting_configtext(
+                'local_tm_certification/instructor_validity_months_' . $level,
+                get_string('setting_instr_validity_months', 'local_tm_certification', $label),
+                get_string('setting_instr_validity_months_desc', 'local_tm_certification'),
+                '12',
+                PARAM_INT
+            ));
+        }
+    }
+    if (!$ADMIN->locate('local_tm_certification_instr_validity')) {
+        $ADMIN->add('local_tm_certification_cat', $instrvalidity);
+    }
+
     $roles = new admin_settingpage('local_tm_certification_roles', get_string('setting_roles_heading', 'local_tm_certification'));
     if ($ADMIN->fulltree) {
         $roleoptions = permissions_manager::role_options();
@@ -165,6 +266,14 @@ if ($hassiteconfig) {
             [],
             $roleoptions
         ));
+        $autoroleopts = [0 => get_string('setting_auto_role_examinee_none', 'local_tm_certification')] + $roleoptions;
+        $roles->add(new admin_setting_configselect(
+            'local_tm_certification/auto_role_examinee',
+            get_string('setting_auto_role_examinee', 'local_tm_certification'),
+            get_string('setting_auto_role_examinee_desc', 'local_tm_certification'),
+            0,
+            $autoroleopts
+        ));
     }
     if (!$ADMIN->locate('local_tm_certification_roles')) {
         $ADMIN->add('local_tm_certification_cat', $roles);
@@ -194,6 +303,44 @@ if ($hassiteconfig) {
             'local/tm_certification:manage'
         ));
     }
+
+    $notify = new admin_settingpage('local_tm_certification_notify', get_string('setting_notify_heading', 'local_tm_certification'));
+    if ($ADMIN->fulltree) {
+        require_once(__DIR__ . '/classes/notification_helper.php');
+        $notify->add(new admin_setting_heading(
+            'local_tm_certification_notify_h',
+            get_string('setting_notify_heading', 'local_tm_certification'),
+            get_string('setting_notify_desc', 'local_tm_certification')
+        ));
+        $notify->add(new admin_setting_configcheckbox(
+            'local_tm_certification/' . \local_tm_certification\notification_helper::CFG_ENABLED,
+            get_string('setting_notify_enabled', 'local_tm_certification'),
+            get_string('setting_notify_enabled_desc', 'local_tm_certification'),
+            1
+        ));
+        $notify->add(new admin_setting_configcheckbox(
+            'local_tm_certification/' . \local_tm_certification\notification_helper::CFG_APP_REVIEW,
+            get_string('setting_notify_app_review', 'local_tm_certification'),
+            get_string('setting_notify_app_review_desc', 'local_tm_certification'),
+            1
+        ));
+        $notify->add(new admin_setting_configcheckbox(
+            'local_tm_certification/' . \local_tm_certification\notification_helper::CFG_NEW_ACCOUNT,
+            get_string('setting_notify_new_account', 'local_tm_certification'),
+            get_string('setting_notify_new_account_desc', 'local_tm_certification'),
+            1
+        ));
+        $notify->add(new admin_setting_configcheckbox(
+            'local_tm_certification/' . \local_tm_certification\notification_helper::CFG_ENROL_EXISTING,
+            get_string('setting_notify_enrol_existing', 'local_tm_certification'),
+            get_string('setting_notify_enrol_existing_desc', 'local_tm_certification'),
+            0
+        ));
+    }
+    if (!$ADMIN->locate('local_tm_certification_notify')) {
+        $ADMIN->add('local_tm_certification_cat', $notify);
+    }
+
     if (!$ADMIN->locate('local_tm_certification_review_ext')) {
         $ADMIN->add('local_tm_certification_cat', new admin_externalpage(
             'local_tm_certification_review_ext',

@@ -45,6 +45,36 @@ class catalog_manager {
     }
 
     /**
+     * All active venues (any level) — for Moodle select option whitelist when JS filters by level.
+     *
+     * @return array<int,string>
+     */
+    public static function venue_options_all_active(): array {
+        $out = [];
+        foreach (self::get_venues(null, true) as $v) {
+            $level = (string)$v->certlevel;
+            $levelopts = session_manager::level_options();
+            $lvlabel = $levelopts[$level] ?? $level;
+            $base = trim((string)($v->venuecode ?? '')) !== ''
+                ? (string)$v->venuecode . ' - ' . (string)$v->name
+                : (string)$v->name;
+            $out[(int)$v->id] = $base . ' [' . $lvlabel . ']';
+        }
+        return $out;
+    }
+
+    /**
+     * True when venue exists, is active, and certlevel matches (trimmed).
+     */
+    public static function venue_matches_level(int $venueid, string $level): bool {
+        $venue = self::get_venue($venueid);
+        if (!$venue || (int)$venue->active !== 1) {
+            return false;
+        }
+        return trim((string)$venue->certlevel) === trim($level);
+    }
+
+    /**
      * @return array<string,array<int,string>>
      */
     public static function venue_options_by_level(): array {
@@ -157,6 +187,21 @@ class catalog_manager {
     }
 
     /**
+     * Union of instructors qualified for any level (Moodle select whitelist).
+     *
+     * @return array<int,string>
+     */
+    public static function instructor_options_all(): array {
+        $out = [];
+        foreach (session_manager::level_options() as $level => $unused) {
+            foreach (self::instructor_options($level) as $userid => $label) {
+                $out[(int)$userid] = $label;
+            }
+        }
+        return $out;
+    }
+
+    /**
      * @return array<string,array<int,string>>
      */
     public static function instructor_options_by_level(): array {
@@ -200,12 +245,22 @@ class catalog_manager {
     }
 
     /**
+     * Active instructor level authorisations keyed by userid.
+     * A user may hold multiple levels at once (basic / intermediate / advanced).
+     *
      * @return array<int,array<string,bool>>
      */
     public static function instructor_level_matrix(): array {
         global $DB;
         $levels = array_keys(session_manager::level_options());
-        $rows = $DB->get_records_select('local_tm_cert_instlvl', 'active = 1', null, '', 'userid,certlevel');
+        // First column must be unique (id): one userid can have several active level rows.
+        $rows = $DB->get_records_select(
+            'local_tm_cert_instlvl',
+            'active = 1',
+            null,
+            'userid ASC, certlevel ASC',
+            'id, userid, certlevel'
+        );
         $matrix = [];
         foreach ($rows as $r) {
             $uid = (int)$r->userid;
@@ -218,6 +273,34 @@ class catalog_manager {
             $matrix[$uid][(string)$r->certlevel] = true;
         }
         return $matrix;
+    }
+
+    /**
+     * Active authorised levels for one instructor (may be multiple).
+     *
+     * @return string[] level codes
+     */
+    public static function get_user_instructor_levels(int $userid): array {
+        global $DB;
+        if ($userid <= 0) {
+            return [];
+        }
+        $rows = $DB->get_records_select(
+            'local_tm_cert_instlvl',
+            'userid = :userid AND active = 1',
+            ['userid' => $userid],
+            'certlevel ASC',
+            'id, certlevel'
+        );
+        $out = [];
+        $allowed = session_manager::level_options();
+        foreach ($rows as $r) {
+            $lv = (string)$r->certlevel;
+            if (array_key_exists($lv, $allowed)) {
+                $out[] = $lv;
+            }
+        }
+        return $out;
     }
 
     /**
@@ -294,5 +377,178 @@ class catalog_manager {
         $record->timemodified = $now;
         $record->updatedby = (int)$USER->id;
         $DB->insert_record('local_tm_cert_instrcert', $record);
+    }
+
+    public const INSTR_STATUS_VALID = 'valid';
+    public const INSTR_STATUS_EXPIRED = 'expired';
+    public const INSTR_STATUS_PENDING = 'pending';
+
+    /**
+     * Configured validity length in months for an instructor level (default 12).
+     * Admin setting applies immediately to all instructors.
+     */
+    public static function instructor_validity_months(string $level): int {
+        $v = get_config('local_tm_certification', 'instructor_validity_months_' . $level);
+        if ($v === false || $v === '' || $v === null) {
+            return 12;
+        }
+        $months = (int)$v;
+        return $months > 0 ? $months : 12;
+    }
+
+    /**
+     * Whether teaching a session auto-extends the validity window (admin setting).
+     * When enabled, last taught session date is included in the anchor (retrospective, live).
+     */
+    public static function instructor_extend_by_teaching(): bool {
+        return (int)get_config('local_tm_certification', 'instructor_extend_by_teaching') === 1;
+    }
+
+    /**
+     * Latest session starttime where user is the assigned instructor (0 if none).
+     */
+    public static function get_instructor_last_taught_at(int $userid): int {
+        global $DB;
+        if ($userid <= 0) {
+            return 0;
+        }
+        $ts = (int)$DB->get_field_sql(
+            "SELECT MAX(starttime)
+               FROM {local_tm_cert_sessions}
+              WHERE instructorid = :uid AND starttime > 0",
+            ['uid' => $userid]
+        );
+        return $ts > 0 ? $ts : 0;
+    }
+
+    /**
+     * Anchor timestamp for instructor profile (renewedat / certifiedat; optionally last taught).
+     */
+    public static function get_instructor_cert_anchor(int $userid): int {
+        $profiles = self::get_instructor_cert_profiles([$userid]);
+        $profile = $profiles[$userid] ?? null;
+        $certified = ($profile && !empty($profile->certifiedat)) ? (int)$profile->certifiedat : 0;
+        $renewed = ($profile && !empty($profile->renewedat)) ? (int)$profile->renewedat : 0;
+        $anchor = max($certified, $renewed);
+        if (self::instructor_extend_by_teaching()) {
+            $anchor = max($anchor, self::get_instructor_last_taught_at($userid));
+        }
+        return $anchor;
+    }
+
+    /**
+     * Validity for one authorised level (date + per-level months; optional teaching extend).
+     *
+     * @return array{status:string,anchor:?int,expiresat:?int,months:int,level:string,lasttaught:?int,extendbyteaching:bool}
+     */
+    public static function get_instructor_level_status(int $userid, string $level, ?int $now = null): array {
+        $now = $now ?? time();
+        $months = self::instructor_validity_months($level);
+        $lasttaught = self::get_instructor_last_taught_at($userid);
+        $extend = self::instructor_extend_by_teaching();
+        $out = [
+            'status' => self::INSTR_STATUS_PENDING,
+            'anchor' => null,
+            'expiresat' => null,
+            'months' => $months,
+            'level' => $level,
+            'lasttaught' => $lasttaught > 0 ? $lasttaught : null,
+            'extendbyteaching' => $extend,
+        ];
+
+        if (!self::instructor_qualified_for_level($userid, $level)) {
+            return $out;
+        }
+
+        $anchor = self::get_instructor_cert_anchor($userid);
+        if ($anchor <= 0) {
+            return $out;
+        }
+
+        $expiresat = (int)strtotime('+' . $months . ' months', $anchor);
+        $out['anchor'] = $anchor;
+        $out['expiresat'] = $expiresat;
+        $out['status'] = ($now < $expiresat) ? self::INSTR_STATUS_VALID : self::INSTR_STATUS_EXPIRED;
+        return $out;
+    }
+
+    /**
+     * Human-readable「更新效期期限」line for a level status row.
+     */
+    public static function format_renewal_deadline_label(array $levelstatus): string {
+        $status = (string)($levelstatus['status'] ?? self::INSTR_STATUS_PENDING);
+        if ($status === self::INSTR_STATUS_EXPIRED) {
+            return get_string('cert_renewal_deadline_urgent', 'local_tm_certification');
+        }
+        if ($status === self::INSTR_STATUS_VALID && !empty($levelstatus['expiresat'])) {
+            return get_string('cert_renewal_deadline_until', 'local_tm_certification',
+                userdate((int)$levelstatus['expiresat'], get_string('strftimedate', 'langconfig')));
+        }
+        return get_string('cert_renewal_deadline_pending', 'local_tm_certification');
+    }
+
+    /**
+     * Status for every active instructor level of a user.
+     *
+     * @return array<string,array{status:string,anchor:?int,expiresat:?int,months:int,level:string}>
+     */
+    public static function get_instructor_levels_status(int $userid, ?int $now = null): array {
+        $out = [];
+        foreach (self::get_user_instructor_levels($userid) as $level) {
+            $out[$level] = self::get_instructor_level_status($userid, $level, $now);
+        }
+        return $out;
+    }
+
+    /**
+     * Aggregate status for display (any valid → valid; else any pending → pending; else expired).
+     *
+     * @return array{status:string,anchor:?int,expiresat:?int,levels:array}
+     */
+    public static function get_instructor_certificate_status(int $userid, ?int $now = null): array {
+        $levels = self::get_instructor_levels_status($userid, $now);
+        if (empty($levels)) {
+            return ['status' => self::INSTR_STATUS_PENDING, 'anchor' => null, 'expiresat' => null, 'levels' => []];
+        }
+
+        $hasvalid = false;
+        $haspending = false;
+        $hasexpired = false;
+        $anchor = null;
+        $expiresat = null;
+        foreach ($levels as $st) {
+            if ($st['status'] === self::INSTR_STATUS_VALID) {
+                $hasvalid = true;
+            } else if ($st['status'] === self::INSTR_STATUS_PENDING) {
+                $haspending = true;
+            } else if ($st['status'] === self::INSTR_STATUS_EXPIRED) {
+                $hasexpired = true;
+            }
+            if (!empty($st['anchor'])) {
+                $anchor = (int)$st['anchor'];
+            }
+            if (!empty($st['expiresat']) && ($expiresat === null || (int)$st['expiresat'] < $expiresat)) {
+                $expiresat = (int)$st['expiresat'];
+            }
+        }
+
+        if ($hasvalid) {
+            $status = self::INSTR_STATUS_VALID;
+        } else if ($haspending && !$hasexpired) {
+            $status = self::INSTR_STATUS_PENDING;
+        } else if ($hasexpired && !$haspending) {
+            $status = self::INSTR_STATUS_EXPIRED;
+        } else if ($hasexpired) {
+            $status = self::INSTR_STATUS_EXPIRED;
+        } else {
+            $status = self::INSTR_STATUS_PENDING;
+        }
+
+        return [
+            'status' => $status,
+            'anchor' => $anchor,
+            'expiresat' => $expiresat,
+            'levels' => $levels,
+        ];
     }
 }

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="local/tm_certification/db" VERSION="2026072908" COMMENT="TM Certification DB Schema">
+<XMLDB PATH="local/tm_certification/db" VERSION="2026073000" COMMENT="TM Certification DB Schema">
   <TABLES>
 
     <TABLE NAME="local_tm_cert_sessions" COMMENT="Certification exam sessions">
@@ -19,7 +19,7 @@
         <FIELD NAME="instructorid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"
                COMMENT="Assigned instructor userid"/>
         <FIELD NAME="status" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"
-               COMMENT="1=open, 0=closed"/>
+               COMMENT="1=open/in progress, 0=ended"/>
         <FIELD NAME="attendancecmid" TYPE="int" LENGTH="10" NOTNULL="false"/>
         <FIELD NAME="attendancesessid" TYPE="int" LENGTH="10" NOTNULL="false"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
@@ -149,6 +149,45 @@
         <INDEX NAME="idx_applicant" UNIQUE="false" FIELDS="applicantid"/>
         <INDEX NAME="idx_instructor" UNIQUE="false" FIELDS="instructorid"/>
         <INDEX NAME="idx_sessionid" UNIQUE="false" FIELDS="sessionid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_candidates" COMMENT="Lifelong examinee candidate IDs">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="candidateid" TYPE="char" LENGTH="20" NOTNULL="true"
+               COMMENT="ROC year 3 digits + serial 3 digits"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="createdby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="uq_userid" TYPE="unique" FIELDS="userid"/>
+        <KEY NAME="uq_candidateid" TYPE="unique" FIELDS="candidateid"/>
+      </KEYS>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_app_learners" COMMENT="Draft examinee roster attached to an application">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="applicationid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="email" TYPE="char" LENGTH="100" NOTNULL="true"/>
+        <FIELD NAME="firstname" TYPE="char" LENGTH="100" NOTNULL="true"/>
+        <FIELD NAME="lastname" TYPE="char" LENGTH="100" NOTNULL="true"/>
+        <FIELD NAME="institution" TYPE="char" LENGTH="255" NOTNULL="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="candidateid" TYPE="char" LENGTH="20" NOTNULL="false"/>
+        <FIELD NAME="scenario" TYPE="char" LENGTH="20" NOTNULL="false"
+               COMMENT="new | issue_id | keep_id"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_app" UNIQUE="false" FIELDS="applicationid"/>
+        <INDEX NAME="idx_email" UNIQUE="false" FIELDS="email"/>
       </INDEXES>
     </TABLE>
 

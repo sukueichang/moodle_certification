@@ -1,6 +1,6 @@
 <?php
 /**
- * List certification sessions.
+ * List certification sessions (admin / approve).
  *
  * @package    local_tm_certification
  */
@@ -20,17 +20,31 @@ $PAGE->set_pagelayout('admin');
 $PAGE->set_title(get_string('nav_sessions', 'local_tm_certification'));
 $PAGE->set_heading(get_string('nav_sessions', 'local_tm_certification'));
 
-if (!permissions_manager::user_can_manage() && !permissions_manager::user_can_approve()) {
+$canmanage = permissions_manager::user_can_manage();
+$canapprove = permissions_manager::user_can_approve();
+if (!$canmanage && !$canapprove) {
     permissions_manager::require_view_access();
     throw new moodle_exception('error_view_access_denied', 'local_tm_certification');
 }
 
 $action = optional_param('action', '', PARAM_ALPHA);
 $sessionid = optional_param('id', 0, PARAM_INT);
-if ($action === 'close' && $sessionid && confirm_sesskey()) {
-    session_manager::close_session($sessionid);
-    redirect($PAGE->url, get_string('session_closed', 'local_tm_certification'), null,
-        \core\output\notification::NOTIFY_SUCCESS);
+if ($sessionid && confirm_sesskey()) {
+    if ($action === 'end' || $action === 'close') {
+        session_manager::end_session($sessionid);
+        redirect($PAGE->url, get_string('session_ended', 'local_tm_certification'), null,
+            \core\output\notification::NOTIFY_SUCCESS);
+    }
+    if ($action === 'reopen' && $canmanage) {
+        session_manager::reopen_session($sessionid);
+        redirect($PAGE->url, get_string('session_reopened', 'local_tm_certification'), null,
+            \core\output\notification::NOTIFY_SUCCESS);
+    }
+    if ($action === 'delete' && $canmanage) {
+        session_manager::delete_session($sessionid);
+        redirect($PAGE->url, get_string('session_deleted', 'local_tm_certification'), null,
+            \core\output\notification::NOTIFY_SUCCESS);
+    }
 }
 
 $sessions = session_manager::get_sessions();
@@ -46,6 +60,7 @@ echo html_writer::div(
     ),
     'tm-cert-page-header d-flex justify-content-between align-items-center flex-wrap mb-3'
 );
+echo html_writer::tag('p', get_string('session_list_hint', 'local_tm_certification'), ['class' => 'text-muted']);
 
 $table = new html_table();
 $table->head = [
@@ -60,9 +75,8 @@ $table->head = [
 $table->data = [];
 
 foreach ($sessions as $s) {
-    $statuslabel = ((int)$s->status === session_manager::STATUS_OPEN)
-        ? get_string('session_status_open', 'local_tm_certification')
-        : get_string('session_status_closed', 'local_tm_certification');
+    $ended = session_manager::is_ended($s);
+    $statuslabel = session_manager::status_label($s);
     $time = userdate((int)$s->starttime, get_string('strftimedatetimeshort', 'langconfig'))
         . ' - '
         . userdate((int)$s->endtime, get_string('strftimetime', 'langconfig'));
@@ -76,15 +90,39 @@ foreach ($sessions as $s) {
         get_string('session_roster', 'local_tm_certification'),
         ['class' => 'btn btn-sm btn-secondary']
     );
-    if ((int)$s->status === session_manager::STATUS_OPEN) {
+    if (!$ended) {
         $actions .= ' ' . html_writer::link(
             new moodle_url('/local/tm_certification/admin/sessions.php', [
-                'action' => 'close',
+                'action' => 'end',
                 'id' => $s->id,
                 'sesskey' => sesskey(),
             ]),
-            get_string('session_close', 'local_tm_certification'),
+            get_string('session_end', 'local_tm_certification'),
             ['class' => 'btn btn-sm btn-warning']
+        );
+    } else if ($canmanage) {
+        $actions .= ' ' . html_writer::link(
+            new moodle_url('/local/tm_certification/admin/sessions.php', [
+                'action' => 'reopen',
+                'id' => $s->id,
+                'sesskey' => sesskey(),
+            ]),
+            get_string('session_reopen', 'local_tm_certification'),
+            ['class' => 'btn btn-sm btn-primary']
+        );
+    }
+    if ($canmanage) {
+        $actions .= ' ' . html_writer::link(
+            new moodle_url('/local/tm_certification/admin/sessions.php', [
+                'action' => 'delete',
+                'id' => $s->id,
+                'sesskey' => sesskey(),
+            ]),
+            get_string('session_delete', 'local_tm_certification'),
+            [
+                'class' => 'btn btn-sm btn-danger',
+                'onclick' => 'return confirm(' . json_encode(get_string('session_delete_confirm', 'local_tm_certification')) . ');',
+            ]
         );
     }
     $venue = (string)$s->venue;

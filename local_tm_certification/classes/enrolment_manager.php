@@ -18,7 +18,12 @@ class enrolment_manager {
     /**
      * Find or create Moodle user by email (batch-style provision).
      *
-     * @return array{userid:int,created:bool,linked:bool,email:string,initial_password:string}
+     * New examinee account rules:
+     * - username = candidate ID (continues after existing 6-digit usernames / plugin IDs)
+     * - lastname = student family name (姓)
+     * - firstname = student given name (名)
+     *
+     * @return array{userid:int,created:bool,linked:bool,email:string,initial_password:string,candidateid?:string}
      */
     public static function provision_or_link_user(
         string $email,
@@ -28,8 +33,10 @@ class enrolment_manager {
     ): array {
         global $DB, $CFG;
         require_once($CFG->dirroot . '/user/lib.php');
+        require_once(__DIR__ . '/candidate_manager.php');
 
         $email = \core_text::strtolower(trim($email));
+        // Moodle: lastname = 姓, firstname = 名.
         $firstname = clean_param(trim($firstname), PARAM_TEXT);
         $lastname = clean_param(trim($lastname), PARAM_TEXT);
         $institution = clean_param(trim($institution), PARAM_TEXT);
@@ -59,37 +66,58 @@ class enrolment_manager {
             ];
         }
 
-        $username = self::generate_username($email);
-        $plainsecret = self::generate_initial_password();
-        $now = time();
-        $newuser = new \stdClass();
-        $newuser->auth = 'manual';
-        $newuser->confirmed = 1;
-        $newuser->mnethostid = $CFG->mnet_localhost_id;
-        $newuser->username = $username;
-        $newuser->password = \hash_internal_user_password($plainsecret);
-        $newuser->firstname = $firstname;
-        $newuser->lastname = $lastname;
-        $newuser->email = $email;
-        $newuser->institution = $institution;
-        $newuser->country = 'TW';
-        $newuser->lang = $CFG->lang;
-        $newuser->timezone = '99';
-        $newuser->maildisplay = 0;
-        $newuser->autosubscribe = 0;
-        $newuser->trackforums = 0;
-        $newuser->timecreated = $now;
-        $newuser->timemodified = $now;
-        $newuserid = (int)\user_create_user($newuser, false, false);
-        if ($newuserid < 2) {
+        $newuserid = 0;
+        $candidateid = '';
+        $plainsecret = '';
+        $attempts = 0;
+        while ($attempts < 8) {
+            $attempts++;
+            $candidateid = candidate_manager::next_candidate_id();
+            if ($DB->record_exists('user', [
+                'username' => $candidateid,
+                'mnethostid' => $CFG->mnet_localhost_id,
+            ])) {
+                continue;
+            }
+
+            $plainsecret = candidate_manager::default_password_for($candidateid);
+            $now = time();
+            $newuser = new \stdClass();
+            $newuser->auth = 'manual';
+            $newuser->confirmed = 1;
+            $newuser->mnethostid = $CFG->mnet_localhost_id;
+            $newuser->username = $candidateid;
+            $newuser->password = \hash_internal_user_password($plainsecret);
+            $newuser->firstname = $firstname;
+            $newuser->lastname = $lastname;
+            $newuser->email = $email;
+            $newuser->institution = $institution;
+            $newuser->country = 'TW';
+            $newuser->lang = $CFG->lang;
+            $newuser->timezone = '99';
+            $newuser->maildisplay = 0;
+            $newuser->autosubscribe = 0;
+            $newuser->trackforums = 0;
+            $newuser->timecreated = $now;
+            $newuser->timemodified = $now;
+
+            try {
+                $newuserid = (int)\user_create_user($newuser, false, false);
+            } catch (\Throwable $e) {
+                $newuserid = 0;
+            }
+            if ($newuserid >= 2) {
+                break;
+            }
+        }
+        if ($newuserid < 2 || $candidateid === '') {
             throw new \moodle_exception('error_batch_user_invalid', 'local_tm_certification');
         }
 
-        $usertable = new \xmldb_table('user');
-        $forcepwfield = new \xmldb_field('forcepasswordchange');
-        if ($DB->get_manager()->field_exists($usertable, $forcepwfield)) {
-            $DB->set_field('user', 'forcepasswordchange', 1, ['id' => $newuserid]);
-        }
+        candidate_manager::bind_candidate_id($newuserid, $candidateid);
+        // Class-day login: do not force password change.
+        self::clear_force_password_change($newuserid);
+        self::assign_configured_examinee_role($newuserid);
 
         return [
             'userid' => $newuserid,
@@ -97,7 +125,57 @@ class enrolment_manager {
             'linked' => false,
             'email' => $email,
             'initial_password' => $plainsecret,
+            'candidateid' => $candidateid,
         ];
+    }
+
+    /**
+     * Assign admin-configured examinee Moodle role at system context.
+     * Additive only: never removes existing roles. Skips if already assigned.
+     */
+    public static function assign_configured_examinee_role(int $userid): void {
+        global $DB;
+
+        $roleid = (int)get_config('local_tm_certification', 'auto_role_examinee');
+        if ($roleid <= 0 || !$DB->record_exists('role', ['id' => $roleid])) {
+            return;
+        }
+        $context = \context_system::instance();
+        if (user_has_role_assignment($userid, $roleid, $context->id)) {
+            return;
+        }
+        role_assign($roleid, $userid, $context->id);
+    }
+
+    /**
+     * Set examinee Moodle password to Tmai + candidate ID (manual add / batch).
+     * Always clears force-password-change so class-day login works with the roster sheet.
+     */
+    public static function apply_default_password(int $userid, string $candidateid): string {
+        global $DB, $CFG;
+        require_once($CFG->dirroot . '/lib/moodlelib.php');
+
+        $plain = candidate_manager::default_password_for($candidateid);
+        $user = $DB->get_record('user', ['id' => $userid, 'deleted' => 0], '*', MUST_EXIST);
+        if ((string)$user->auth !== 'manual') {
+            debugging(
+                'local_tm_certification: resetting password for non-manual auth user id=' . $userid
+                . ' auth=' . $user->auth,
+                DEBUG_DEVELOPER
+            );
+        }
+        \update_internal_user_password($user, $plain);
+        self::clear_force_password_change($userid);
+        return $plain;
+    }
+
+    private static function clear_force_password_change(int $userid): void {
+        global $DB;
+        $usertable = new \xmldb_table('user');
+        $forcepwfield = new \xmldb_field('forcepasswordchange');
+        if ($DB->get_manager()->field_exists($usertable, $forcepwfield)) {
+            $DB->set_field('user', 'forcepasswordchange', 0, ['id' => $userid]);
+        }
     }
 
     /**
@@ -115,6 +193,9 @@ class enrolment_manager {
         global $DB, $USER;
 
         $session = session_manager::get_session($sessionid);
+        if (!session_manager::can_add_examinees($session)) {
+            throw new \moodle_exception('error_session_ended_no_enrol', 'local_tm_certification');
+        }
         $existing = $DB->get_record('local_tm_cert_enrols', [
             'sessionid' => $sessionid,
             'userid' => $userid,
@@ -140,8 +221,16 @@ class enrolment_manager {
             $enrolid = (int)$DB->insert_record('local_tm_cert_enrols', $row);
         }
 
-        if ($syncmoodle && $status === self::ENROL_APPROVED && (int)$session->courseid > 0) {
-            self::sync_moodle_enrolment($userid, (int)$session->courseid, 'enrol');
+        // New + existing (issue ID / keep ID): add configured examinee role without removing others.
+        if ($status === self::ENROL_APPROVED) {
+            self::assign_configured_examinee_role($userid);
+        }
+
+        if ($syncmoodle && $status === self::ENROL_APPROVED) {
+            $courseid = session_manager::resolve_courseid($session, true);
+            if ($courseid > 0) {
+                self::sync_moodle_enrolment($userid, $courseid, 'enrol');
+            }
         }
 
         return $enrolid;
@@ -160,9 +249,66 @@ class enrolment_manager {
         string $institution = '',
         int $addedby = 0
     ): array {
+        require_once(__DIR__ . '/candidate_manager.php');
+        require_once(__DIR__ . '/prerequisite_helper.php');
+        require_once(__DIR__ . '/session_manager.php');
+
+        $session = session_manager::get_session($sessionid);
+        $certlevel = (string)$session->certlevel;
+
+        if (prerequisite_helper::requires_prerequisite($certlevel)) {
+            $check = prerequisite_helper::evaluate_row($email, $firstname, $lastname, $institution, $certlevel);
+            if (empty($check['eligible'])) {
+                throw new \moodle_exception(
+                    'error_prereq_blocked',
+                    'local_tm_certification',
+                    '',
+                    prerequisite_helper::format_reasons($check['reasons'] ?? [])
+                );
+            }
+            $userid = (int)$check['userid'];
+            $candidateid = (string)$check['candidateid'];
+            $password = self::apply_default_password($userid, $candidateid);
+            $enrolid = self::add_to_session($sessionid, $userid, $addedby, self::ENROL_APPROVED, true);
+            $provision = [
+                'userid' => $userid,
+                'created' => false,
+                'linked' => true,
+                'email' => \core_text::strtolower(trim($email)),
+                'initial_password' => $password,
+                'candidateid' => $candidateid,
+                'enrolid' => $enrolid,
+            ];
+            require_once(__DIR__ . '/notification_helper.php');
+            notification_helper::notify_examinee_added(
+                $userid,
+                $sessionid,
+                false,
+                $candidateid,
+                $password
+            );
+            return $provision;
+        }
+
         $provision = self::provision_or_link_user($email, $firstname, $lastname, $institution);
+        $provision['candidateid'] = candidate_manager::ensure_candidate_id((int)$provision['userid'], $addedby);
+        // Always align login password to Tmai + candidate ID for class-day use.
+        $provision['initial_password'] = self::apply_default_password(
+            (int)$provision['userid'],
+            (string)$provision['candidateid']
+        );
         $enrolid = self::add_to_session($sessionid, (int)$provision['userid'], $addedby, self::ENROL_APPROVED, true);
         $provision['enrolid'] = $enrolid;
+
+        require_once(__DIR__ . '/notification_helper.php');
+        notification_helper::notify_examinee_added(
+            (int)$provision['userid'],
+            $sessionid,
+            !empty($provision['created']),
+            (string)($provision['candidateid'] ?? ''),
+            (string)($provision['initial_password'] ?? '')
+        );
+
         return $provision;
     }
 
@@ -171,18 +317,27 @@ class enrolment_manager {
      */
     public static function get_session_roster(int $sessionid): array {
         global $DB;
+        require_once(__DIR__ . '/candidate_manager.php');
 
-        $sql = "SELECT e.*, u.email, u.institution,
+        $sql = "SELECT e.*, u.email, u.institution, u.username,
                        u.firstname, u.lastname, u.middlename, u.alternatename,
-                       u.firstnamephonetic, u.lastnamephonetic
+                       u.firstnamephonetic, u.lastnamephonetic,
+                       c.candidateid
                   FROM {local_tm_cert_enrols} e
                   JOIN {user} u ON u.id = e.userid
+             LEFT JOIN {local_tm_cert_candidates} c ON c.userid = u.id
                  WHERE e.sessionid = :sessionid AND e.status <> :cancelled
               ORDER BY u.lastname ASC, u.firstname ASC, e.id ASC";
-        return array_values($DB->get_records_sql($sql, [
+        $rows = array_values($DB->get_records_sql($sql, [
             'sessionid' => $sessionid,
             'cancelled' => self::ENROL_CANCELLED,
         ]));
+        foreach ($rows as $row) {
+            if (empty($row->candidateid) && candidate_manager::is_candidate_id_format((string)$row->username)) {
+                $row->candidateid = (string)$row->username;
+            }
+        }
+        return $rows;
     }
 
     public static function cancel_enrolment(int $enrolid, bool $unenrolmoodle = false): void {
@@ -194,10 +349,114 @@ class enrolment_manager {
 
         if ($unenrolmoodle) {
             $session = session_manager::get_session((int)$enrol->sessionid);
-            if ((int)$session->courseid > 0) {
-                self::sync_moodle_enrolment((int)$enrol->userid, (int)$session->courseid, 'unenrol');
+            $courseid = session_manager::resolve_courseid($session, true);
+            if ($courseid > 0) {
+                self::sync_moodle_enrolment((int)$enrol->userid, $courseid, 'unenrol');
             }
         }
+    }
+
+    /**
+     * Decide whether removing this roster row should also delete the Moodle user.
+     *
+     * Delete only when:
+     * - account looks like an examinee (candidate ID / 6-digit username), AND
+     * - never logged in (firstaccess/lastaccess = 0), AND
+     * - no quiz attempts, AND
+     * - no other active certification roster rows.
+     *
+     * @return array{userid:int,fullname:string,username:string,will_delete_user:bool,reasons:string[]}
+     */
+    public static function assess_roster_removal(int $enrolid): array {
+        global $DB;
+        require_once(__DIR__ . '/candidate_manager.php');
+
+        $enrol = $DB->get_record('local_tm_cert_enrols', ['id' => $enrolid], '*', MUST_EXIST);
+        $user = $DB->get_record('user', ['id' => (int)$enrol->userid, 'deleted' => 0], '*', MUST_EXIST);
+
+        $reasons = [];
+        $willdelete = true;
+
+        if (is_siteadmin($user) || (int)$user->id < 2) {
+            $willdelete = false;
+            $reasons[] = 'protected_account';
+        }
+
+        $candidateid = candidate_manager::get_candidate_id((int)$user->id);
+        $isexaminee = ($candidateid !== null) || candidate_manager::is_candidate_id_format((string)$user->username);
+        if (!$isexaminee) {
+            $willdelete = false;
+            $reasons[] = 'not_examinee_account';
+        }
+
+        if ((int)$user->lastaccess > 0 || (int)$user->firstaccess > 0) {
+            $willdelete = false;
+            $reasons[] = 'has_logged_in';
+        }
+
+        if ($DB->get_manager()->table_exists('quiz_attempts')
+            && $DB->record_exists('quiz_attempts', ['userid' => (int)$user->id])) {
+            $willdelete = false;
+            $reasons[] = 'has_quiz_attempts';
+        }
+
+        $otheractive = $DB->count_records_select(
+            'local_tm_cert_enrols',
+            'userid = :userid AND status <> :cancelled AND id <> :enrolid',
+            [
+                'userid' => (int)$user->id,
+                'cancelled' => self::ENROL_CANCELLED,
+                'enrolid' => $enrolid,
+            ]
+        );
+        if ($otheractive > 0) {
+            $willdelete = false;
+            $reasons[] = 'other_active_roster';
+        }
+
+        return [
+            'enrolid' => $enrolid,
+            'sessionid' => (int)$enrol->sessionid,
+            'userid' => (int)$user->id,
+            'fullname' => fullname($user),
+            'username' => (string)$user->username,
+            'email' => (string)$user->email,
+            'will_delete_user' => $willdelete,
+            'reasons' => $reasons,
+        ];
+    }
+
+    /**
+     * Remove from session roster; optionally delete unused mistaken account.
+     *
+     * @return array{removed:bool,deleted_user:bool,assessment:array}
+     */
+    public static function remove_from_roster(int $enrolid, bool $confirmdeleteuser = false): array {
+        global $CFG;
+        require_once($CFG->dirroot . '/user/lib.php');
+
+        $assessment = self::assess_roster_removal($enrolid);
+        // Always remove from this session + unenrol mapped Moodle course.
+        self::cancel_enrolment($enrolid, true);
+
+        $deleted = false;
+        if (!empty($assessment['will_delete_user']) && $confirmdeleteuser) {
+            require_once(__DIR__ . '/candidate_manager.php');
+            $userid = (int)$assessment['userid'];
+            $user = \core_user::get_user($userid, '*', MUST_EXIST);
+            if (!is_siteadmin($user) && $userid > 1 && empty($user->deleted)) {
+                // Free candidate ID before soft-delete so the number can be reused.
+                candidate_manager::release_for_userid($userid);
+                \delete_user($user);
+                $deleted = true;
+            }
+        }
+
+        return [
+            'removed' => true,
+            'deleted_user' => $deleted,
+            'assessment' => $assessment,
+        ];
     }
 
     /**
@@ -259,6 +518,50 @@ class enrolment_manager {
         }
     }
 
+    /**
+     * Sessions the examinee is actively rostered on (newest start first).
+     *
+     * @return \stdClass[] session rows + venue + instructor name fields + enrolid
+     */
+    public static function get_examinee_sessions(int $userid): array {
+        global $DB;
+        require_once(__DIR__ . '/session_manager.php');
+
+        $sql = "SELECT s.*, e.id AS enrolid, e.status AS enrolstatus,
+                       v.name AS venuename, v.venuecode AS venuecode,
+                       u.firstname AS instructor_firstname, u.lastname AS instructor_lastname,
+                       u.middlename AS instructor_middlename, u.alternatename AS instructor_alternatename,
+                       u.firstnamephonetic AS instructor_firstnamephonetic,
+                       u.lastnamephonetic AS instructor_lastnamephonetic
+                  FROM {local_tm_cert_enrols} e
+                  JOIN {local_tm_cert_sessions} s ON s.id = e.sessionid
+             LEFT JOIN {local_tm_cert_venues} v ON v.id = s.venueid
+             LEFT JOIN {user} u ON u.id = s.instructorid AND u.deleted = 0
+                 WHERE e.userid = :userid AND e.status <> :cancelled
+              ORDER BY s.starttime DESC, s.id DESC";
+        $rows = array_values($DB->get_records_sql($sql, [
+            'userid' => $userid,
+            'cancelled' => self::ENROL_CANCELLED,
+        ]));
+        foreach ($rows as $i => $row) {
+            $rows[$i] = session_manager::sync_auto_end($row);
+            if (!empty($row->instructorid)) {
+                $rows[$i]->instructor = (object)[
+                    'id' => (int)$row->instructorid,
+                    'firstname' => $row->instructor_firstname ?? '',
+                    'lastname' => $row->instructor_lastname ?? '',
+                    'middlename' => $row->instructor_middlename ?? '',
+                    'alternatename' => $row->instructor_alternatename ?? '',
+                    'firstnamephonetic' => $row->instructor_firstnamephonetic ?? '',
+                    'lastnamephonetic' => $row->instructor_lastnamephonetic ?? '',
+                ];
+            } else {
+                $rows[$i]->instructor = null;
+            }
+        }
+        return $rows;
+    }
+
     private static function resolve_manual_enrol_role_id(\stdClass $instance): int {
         global $DB;
 
@@ -273,25 +576,4 @@ class enrolment_manager {
         throw new \moodle_exception('error_moodle_manual_role_not_configured', 'local_tm_certification');
     }
 
-    private static function generate_username(string $email): string {
-        global $DB, $CFG;
-
-        $localpart = trim((string)preg_replace('/[^a-z0-9._-]+/i', '', strstr($email, '@', true)));
-        if ($localpart === '') {
-            $localpart = 'tm_cert';
-        }
-        $base = \core_text::strtolower(substr($localpart, 0, 20));
-        $username = $base;
-        $suffix = 0;
-        while ($DB->record_exists('user', ['username' => $username, 'mnethostid' => $CFG->mnet_localhost_id])) {
-            $suffix++;
-            $username = substr($base, 0, max(1, 28 - strlen((string)$suffix))) . '_' . $suffix;
-        }
-        return $username;
-    }
-
-    private static function generate_initial_password(): string {
-        // Readable temporary password; force change on first login when supported.
-        return 'Tm' . random_int(100000, 999999) . '!';
-    }
 }

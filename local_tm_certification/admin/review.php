@@ -100,6 +100,10 @@ if ($action === 'approve' || $action === 'reject') {
         echo $OUTPUT->notification(get_string('error_app_not_found', 'local_tm_certification'), 'error');
     } else {
         $app = application_manager::get_application($appid);
+        $venue = '';
+        if (!empty($app->venuecode) || !empty($app->venuename)) {
+            $venue = trim((string)($app->venuecode ?? '') . ' ' . (string)($app->venuename ?? ''));
+        }
         $confirmurl = new moodle_url('/local/tm_certification/admin/review.php', [
             'action' => $action,
             'id' => $appid,
@@ -110,7 +114,24 @@ if ($action === 'approve' || $action === 'reject') {
         echo html_writer::tag('p',
             ($levels[$app->certlevel] ?? $app->certlevel) . ' · '
             . userdate((int)$app->starttime, get_string('strftimedatetimeshort', 'langconfig'))
+            . ($venue !== '' ? ' · ' . s($venue) : '')
         );
+        echo html_writer::tag('p',
+            get_string('app_col_applicant', 'local_tm_certification') . '：' . fullname($app->applicant)
+            . ' · '
+            . get_string('session_instructor', 'local_tm_certification') . '：' . fullname($app->instructor)
+        );
+        $applicantnote = trim((string)($app->applicantnote ?? ''));
+        if ($applicantnote !== '') {
+            echo html_writer::div(
+                html_writer::tag('strong', get_string('app_applicant_note', 'local_tm_certification') . '：')
+                . ' ' . format_text($applicantnote, FORMAT_PLAIN),
+                'alert alert-info'
+            );
+        } else {
+            echo html_writer::div(get_string('app_note_empty', 'local_tm_certification'), 'text-muted mb-2');
+        }
+
         echo html_writer::start_tag('form', ['method' => 'post', 'action' => $confirmurl->out(false)]);
         echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
         echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => $action]);
@@ -147,6 +168,8 @@ if (empty($apps)) {
         get_string('session_level', 'local_tm_certification'),
         get_string('session_venue', 'local_tm_certification'),
         get_string('session_start', 'local_tm_certification'),
+        get_string('app_applicant_note', 'local_tm_certification'),
+        get_string('app_manager_note', 'local_tm_certification'),
         get_string('app_status', 'local_tm_certification'),
         get_string('actions'),
     ];
@@ -155,6 +178,8 @@ if (empty($apps)) {
         if (!empty($app->venuecode) || !empty($app->venuename)) {
             $venue = trim((string)($app->venuecode ?? '') . ' ' . (string)($app->venuename ?? ''));
         }
+        $applicantnote = trim((string)($app->applicantnote ?? ''));
+        $managernote = trim((string)($app->managernote ?? ''));
         $actions = '';
         if ((int)$app->status === application_manager::STATUS_PENDING) {
             $actions .= html_writer::link(
@@ -189,6 +214,8 @@ if (empty($apps)) {
             $levels[$app->certlevel] ?? $app->certlevel,
             s($venue),
             userdate((int)$app->starttime, get_string('strftimedatetimeshort', 'langconfig')),
+            $applicantnote !== '' ? format_text($applicantnote, FORMAT_PLAIN) : '—',
+            $managernote !== '' ? format_text($managernote, FORMAT_PLAIN) : '—',
             $statusopts[(int)$app->status] ?? (string)$app->status,
             $actions,
         ];

@@ -55,6 +55,19 @@ $profiles = catalog_manager::get_instructor_cert_profiles(array_map(static funct
 
 echo $OUTPUT->header();
 echo html_writer::tag('p', get_string('instructor_levels_intro', 'local_tm_certification'), ['class' => 'text-muted']);
+echo html_writer::tag('p', get_string('instructor_levels_validity_hint', 'local_tm_certification'), ['class' => 'text-muted']);
+foreach (session_manager::level_options() as $lv => $label) {
+    $months = catalog_manager::instructor_validity_months($lv);
+    echo html_writer::tag('span',
+        get_string('instructor_levels_validity_item', 'local_tm_certification', (object)[
+            'level' => $label,
+            'months' => $months,
+        ]),
+        ['class' => 'badge badge-secondary mr-1']
+    );
+}
+echo html_writer::empty_tag('br');
+echo html_writer::empty_tag('br');
 if (empty($users)) {
     echo $OUTPUT->notification(get_string('instructor_levels_empty', 'local_tm_certification'), 'warning');
 }

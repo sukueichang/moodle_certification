@@ -57,20 +57,19 @@ class local_tm_certification_session_form extends moodleform {
             $initiallevel = (string)$this->_customdata['session']->certlevel;
         }
 
-        $venueopts = catalog_manager::venue_options($initiallevel);
+        $venueopts = catalog_manager::venue_options_all_active();
         $venueopts = [0 => get_string('session_venue_none', 'local_tm_certification')] + $venueopts;
         $mform->addElement('select', 'venueid', get_string('session_venue', 'local_tm_certification'), $venueopts);
         $mform->setType('venueid', PARAM_INT);
 
-        $instructoropts = catalog_manager::instructor_options($initiallevel);
+        $instructoropts = catalog_manager::instructor_options_all();
         $instructoropts = [0 => get_string('session_instructor_none', 'local_tm_certification')] + $instructoropts;
         $mform->addElement('select', 'instructorid', get_string('session_instructor', 'local_tm_certification'), $instructoropts);
         $mform->setType('instructorid', PARAM_INT);
 
-        $mform->addElement('select', 'status', get_string('session_status', 'local_tm_certification'), [
-            session_manager::STATUS_OPEN => get_string('session_status_open', 'local_tm_certification'),
-            session_manager::STATUS_CLOSED => get_string('session_status_closed', 'local_tm_certification'),
-        ]);
+        $mform->addElement('select', 'status', get_string('session_status', 'local_tm_certification'),
+            session_manager::status_options());
+        $mform->addElement('static', 'status_hint', '', get_string('session_status_hint', 'local_tm_certification'));
 
         $this->add_action_buttons(true, get_string('savechanges'));
     }

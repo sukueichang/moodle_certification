@@ -1,6 +1,6 @@
 <?php
 /**
- * Instructor: apply to open a certification course.
+ * Instructor: apply to open a certification course (session only, no roster).
  *
  * @package    local_tm_certification
  */
@@ -59,13 +59,13 @@ class local_tm_certification_apply_form extends moodleform {
         $mform->addElement('date_time_selector', 'starttime', get_string('session_start', 'local_tm_certification'));
         $mform->addElement('date_time_selector', 'endtime', get_string('session_end', 'local_tm_certification'));
 
-        $venueopts = catalog_manager::venue_options($initiallevel);
+        $venueopts = catalog_manager::venue_options_all_active();
         $venueopts = [0 => get_string('session_venue_none', 'local_tm_certification')] + $venueopts;
         $mform->addElement('select', 'venueid', get_string('session_venue', 'local_tm_certification'), $venueopts);
         $mform->setType('venueid', PARAM_INT);
         $mform->addRule('venueid', null, 'required', null, 'client');
 
-        $instructoropts = catalog_manager::instructor_options($initiallevel);
+        $instructoropts = catalog_manager::instructor_options_all();
         if (empty($instructoropts)) {
             $instructoropts = [(int)$this->_customdata['userid'] => fullname($this->_customdata['user'])];
         }
@@ -76,9 +76,6 @@ class local_tm_certification_apply_form extends moodleform {
         $mform->addElement('textarea', 'applicantnote', get_string('app_applicant_note', 'local_tm_certification'),
             'wrap="virtual" rows="3" cols="50"');
         $mform->setType('applicantnote', PARAM_TEXT);
-
-        $mform->addElement('static', 'roster_hint', get_string('app_roster_hint_label', 'local_tm_certification'),
-            get_string('app_roster_hint', 'local_tm_certification'));
 
         $this->add_action_buttons(true, get_string('app_submit', 'local_tm_certification'));
     }
@@ -101,7 +98,7 @@ if ($mform->is_cancelled()) {
 
 if ($data = $mform->get_data()) {
     try {
-        $appid = application_manager::submit([
+        $payload = [
             'certlevel' => $data->certlevel,
             'starttime' => (int)$data->starttime,
             'endtime' => (int)$data->endtime,
@@ -109,7 +106,8 @@ if ($data = $mform->get_data()) {
             'instructorid' => (int)$data->instructorid,
             'applicantnote' => (string)($data->applicantnote ?? ''),
             'applicantid' => (int)$USER->id,
-        ]);
+        ];
+        $appid = application_manager::submit($payload);
         redirect(
             new moodle_url('/local/tm_certification/index.php'),
             get_string('app_submit_success', 'local_tm_certification', $appid),
@@ -117,11 +115,8 @@ if ($data = $mform->get_data()) {
             \core\output\notification::NOTIFY_SUCCESS
         );
     } catch (moodle_exception $e) {
-        echo $OUTPUT->header();
-        echo $OUTPUT->notification($e->getMessage(), 'error');
-        $mform->display();
-        echo $OUTPUT->footer();
-        exit;
+        \core\notification::error($e->getMessage());
+        $mform->set_data($data);
     }
 }
 
