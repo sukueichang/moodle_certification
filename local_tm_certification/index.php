@@ -27,8 +27,6 @@ $context = context_system::instance();
 $PAGE->set_context($context);
 $PAGE->set_url(new moodle_url('/local/tm_certification/index.php'));
 $PAGE->set_pagelayout('standard');
-$PAGE->set_title(get_string('nav_dashboard', 'local_tm_certification'));
-$PAGE->set_heading(get_string('nav_dashboard', 'local_tm_certification'));
 
 if (!permissions_manager::is_dashboard_globally_enabled() && !permissions_manager::user_can_manage()) {
     redirect(new moodle_url('/'), get_string('error_dashboard_disabled', 'local_tm_certification'),
@@ -37,11 +35,16 @@ if (!permissions_manager::is_dashboard_globally_enabled() && !permissions_manage
 
 $view = permissions_manager::resolve_dashboard_view();
 if ($view === 'none') {
+    $PAGE->set_title(get_string('nav_dashboard', 'local_tm_certification'));
+    $PAGE->set_heading(get_string('nav_dashboard', 'local_tm_certification'));
     echo $OUTPUT->header();
     echo $OUTPUT->notification(get_string('error_dashboard_view_none', 'local_tm_certification'), 'warning');
     echo $OUTPUT->footer();
     exit;
 }
+
+$PAGE->set_title(dashboard_helper::title_for_view($view));
+$PAGE->set_heading(dashboard_helper::title_for_view($view));
 
 $cover = dashboard_helper::cover_for_view($view);
 $levels = session_manager::level_options();
@@ -108,6 +111,9 @@ echo html_writer::start_div('tm-cert-dash');
 echo html_writer::start_div('tm-cert-head');
 echo html_writer::start_div();
 echo html_writer::tag('h2', s($cover['title']));
+if (!empty($cover['subtitle'])) {
+    echo html_writer::div(s($cover['subtitle']), 'tm-cert-head-subtitle');
+}
 if (!empty($cover['badges'])) {
     echo html_writer::start_div('tm-cert-facts');
     foreach ($cover['badges'] as $badge) {
@@ -136,18 +142,29 @@ if ($view === 'manage') {
         get_string('dash_action_manage_sessions', 'local_tm_certification'),
         ['class' => 'btn btn-secondary']
     );
+    echo html_writer::link(
+        new moodle_url('/local/tm_certification/admin/review.php'),
+        get_string('dash_action_review_apps', 'local_tm_certification'),
+        ['class' => 'btn btn-secondary']
+    );
 } else if ($view === 'instruct') {
     echo html_writer::link(
         new moodle_url('/local/tm_certification/apply.php'),
         get_string('dash_action_apply', 'local_tm_certification'),
         ['class' => 'btn btn-primary']
     );
+    echo html_writer::link(
+        new moodle_url('/local/tm_certification/my_certificates.php'),
+        get_string('nav_my_certificates', 'local_tm_certification'),
+        ['class' => 'btn btn-secondary']
+    );
+} else {
+    echo html_writer::link(
+        new moodle_url('/local/tm_certification/my_certificates.php'),
+        get_string('nav_my_certificates', 'local_tm_certification'),
+        ['class' => 'btn btn-secondary']
+    );
 }
-echo html_writer::link(
-    new moodle_url('/local/tm_certification/my_certificates.php'),
-    get_string('nav_my_certificates', 'local_tm_certification'),
-    ['class' => 'btn btn-secondary']
-);
 echo html_writer::end_div();
 echo html_writer::end_div();
 

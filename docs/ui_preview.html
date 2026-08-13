@@ -1174,6 +1174,240 @@
       font-size: 0.88rem;
     }
 
+    /* ==== Moodle 首頁注入區塊（v4 提案）==== */
+    .home-rail {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 860px) {
+      .home-rail { grid-template-columns: 1fr; }
+    }
+    .home-moodle-fake {
+      background: #f6f8f9;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+      min-height: 120px;
+    }
+    .home-moodle-fake .fake-bar {
+      height: 10px;
+      border-radius: 4px;
+      background: #dde6ea;
+      margin-bottom: 10px;
+      max-width: 55%;
+    }
+    .home-moodle-fake .fake-bar.w2 { max-width: 78%; opacity: 0.7; }
+    .home-moodle-fake .fake-bar.w3 { max-width: 40%; opacity: 0.5; margin-bottom: 0; }
+    .home-moodle-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+
+    .home-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px 16px 14px;
+      box-shadow: 0 1px 0 rgba(21, 37, 44, 0.04);
+    }
+    .home-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .home-card h1 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--tm-blue);
+      letter-spacing: 0.01em;
+    }
+    .home-card .hello {
+      margin: 4px 0 0;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--ink);
+    }
+    .home-link-full {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-decoration: none;
+      white-space: nowrap;
+      padding: 4px 0;
+      border-bottom: 1px solid transparent;
+    }
+    .home-link-full:hover {
+      color: var(--tm-blue);
+      border-bottom-color: var(--tm-blue);
+    }
+
+    .home-kpis {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 12px 0 14px;
+    }
+    .home-kpi {
+      background: #f4f8fa;
+      border: 1px solid #e2ebef;
+      border-radius: 8px;
+      padding: 10px 10px 9px;
+      text-align: left;
+    }
+    .home-kpi .n {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--tm-blue);
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .home-kpi .n.warn { color: #c45c00; }
+    .home-kpi .l {
+      margin-top: 3px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+
+    .home-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0 4px;
+    }
+    .home-meta {
+      margin: 6px 0 0;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .home-meta.urgent {
+      color: var(--expired);
+      font-weight: 600;
+    }
+
+    .home-section-label {
+      margin: 12px 0 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .home-list {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+    .home-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+    .home-item:last-child { border-bottom: 0; }
+    .home-item .name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .home-item .sub {
+      margin-top: 2px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .home-item .ops {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      justify-content: flex-end;
+    }
+    .home-empty {
+      padding: 16px 12px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+      border: 1px dashed #c5d4db;
+      border-radius: 8px;
+      background: #fafcfd;
+    }
+
+    .home-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .home-actions .btn { min-height: 34px; font-size: 0.82rem; }
+
+    .proposal-box {
+      margin: 0 0 16px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1px solid #cfe0e8;
+      background: linear-gradient(180deg, #f7fbfd 0%, #eef5f8 100%);
+      font-size: 0.88rem;
+      color: var(--ink);
+    }
+    .proposal-box h3 {
+      margin: 0 0 8px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--tm-blue);
+    }
+    .proposal-box dl {
+      margin: 0;
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 6px 10px;
+    }
+    .proposal-box dt {
+      font-weight: 700;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    .proposal-box dd { margin: 0; }
+    .proposal-box ul {
+      margin: 8px 0 0;
+      padding-left: 1.15em;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .compare-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .compare-strip .tag {
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #e4eef2;
+      color: var(--tm-blue);
+    }
+    .compare-strip .tag.old {
+      background: #eef1f3;
+      color: var(--ended);
+      text-decoration: line-through;
+    }
+
   </style>
 </head>
 <body>
@@ -1183,18 +1417,263 @@
   </div>
 
   <div class="shell">
-    <p class="howto">上方切換<strong>功能區</strong>；區內再切換<strong>相關畫面</strong>（例如儀表板三角色、名單／新增）。確認後再寫入外掛。</p>
+    <p class="howto">上方切換<strong>功能區</strong>（預設「首頁區塊」為 v4 提案）；區內再切身分／相關畫面。確認後再寫入外掛。</p>
 
     <nav class="topnav" role="tablist" aria-label="功能區">
-      <button type="button" class="active" data-sec="dash">儀表板</button>
+      <button type="button" class="active" data-sec="home">首頁區塊</button>
+      <button type="button" data-sec="dash">儀表板</button>
       <button type="button" data-sec="roster">學員名單</button>
       <button type="button" data-sec="scores">輸入成績</button>
       <button type="button" data-sec="cert">證書／申請開課</button>
     </nav>
 
 
+    <!-- ========== 首頁注入區塊 v4 ========== -->
+    <section class="sec" id="sec-home">
+      <div class="sec-title">Moodle 網站首頁／我的首頁 · 注入區塊（v4 提案）</div>
+
+      <div class="proposal-box">
+        <h3>標題用詞（三角色相同）</h3>
+        <dl>
+          <dt>zh_tw</dt>
+          <dd><strong>AI協作型機械手臂能力檢定</strong></dd>
+          <dt>en</dt>
+          <dd><strong>AI Cobot Competency Certification</strong></dd>
+          <dt>zh_cn</dt>
+          <dd><strong>AI协作型机械手臂能力检定</strong></dd>
+        </dl>
+        <ul>
+          <li>管理<strong>不顯示</strong>「我的證書」；完整頁面改為次要文字連結，主按鈕改為角色任務。</li>
+          <li>首頁區塊承載 KPI／下一件事／快捷鈕；完整儀表板保留深度列表。</li>
+        </ul>
+      </div>
+
+      <div class="roles subnav" data-prefix="home" role="tablist" aria-label="切換身分預覽">
+        <button type="button" class="active" data-view="home-manage">管理</button>
+        <button type="button" data-view="home-instruct">講師</button>
+        <button type="button" data-view="home-examinee">學員</button>
+      </div>
+
+      <!-- 管理 -->
+      <section id="view-home-manage" class="view active">
+        <div class="compare-strip">
+          <span class="tag old">舊：檢定管理中心</span>
+          <span class="tag">新：AI協作型機械手臂能力檢定</span>
+          <span class="tag">無「我的證書」</span>
+        </div>
+        <div class="home-rail">
+          <div>
+            <p class="home-moodle-label">Moodle 首頁內容區（示意）</p>
+            <div class="home-moodle-fake" aria-hidden="true">
+              <div class="fake-bar"></div>
+              <div class="fake-bar w2"></div>
+              <div class="fake-bar w3"></div>
+            </div>
+          </div>
+          <div>
+            <p class="home-moodle-label">注入區塊</p>
+            <article class="home-card" aria-label="AI協作型機械手臂能力檢定">
+              <div class="home-card-top">
+                <div>
+                  <h1>AI協作型機械手臂能力檢定</h1>
+                </div>
+                <a class="home-link-full" href="#sec-dash">完整儀表板 →</a>
+              </div>
+
+              <div class="home-kpis">
+                <div class="home-kpi">
+                  <div class="n warn">2</div>
+                  <div class="l">待審申請</div>
+                </div>
+                <div class="home-kpi">
+                  <div class="n">5</div>
+                  <div class="l">進行中場次</div>
+                </div>
+                <div class="home-kpi">
+                  <div class="n">36</div>
+                  <div class="l">本週學員</div>
+                </div>
+              </div>
+
+              <div class="home-section-label">待處理</div>
+              <div class="home-list">
+                <div class="home-item">
+                  <div>
+                    <div class="name">王老師 · [初級]</div>
+                    <div class="sub">7/30 16:07 · 台北 A · 名單 8 人</div>
+                  </div>
+                  <div class="ops">
+                    <span class="btn btn-accent btn-sm">核准</span>
+                  </div>
+                </div>
+                <div class="home-item">
+                  <div>
+                    <div class="name">李老師 · [中級]</div>
+                    <div class="sub">8/02 09:00 · 台中 B · 名單 12 人</div>
+                  </div>
+                  <div class="ops">
+                    <span class="btn btn-accent btn-sm">核准</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="home-actions">
+                <span class="btn btn-primary btn-sm">審核申請</span>
+                <span class="btn btn-secondary btn-sm">新增場次</span>
+                <span class="btn btn-secondary btn-sm">全部場次</span>
+              </div>
+            </article>
+          </div>
+        </div>
+        <div class="footer-note" style="margin-top:16px;border:0;padding-top:0;">
+          <strong>管理 · 為何這樣排</strong>
+          <ul>
+            <li><strong>資訊：</strong>待審數、進行中場次、本週學員（與完整儀表板 KPI 對齊）。</li>
+            <li><strong>列表：</strong>最多 2 筆待審，可直接核准（詳情／駁回仍在審核頁）。</li>
+            <li><strong>按鈕：</strong>審核申請／新增場次／全部場次；證書與講師等級授權不進首頁。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 講師 -->
+      <section id="view-home-instruct" class="view">
+        <div class="compare-strip">
+          <span class="tag old">舊：檢定管理中心</span>
+          <span class="tag">新：AI協作型機械手臂能力檢定</span>
+        </div>
+        <div class="home-rail">
+          <div>
+            <p class="home-moodle-label">Moodle 首頁內容區（示意）</p>
+            <div class="home-moodle-fake" aria-hidden="true">
+              <div class="fake-bar"></div>
+              <div class="fake-bar w2"></div>
+              <div class="fake-bar w3"></div>
+            </div>
+          </div>
+          <div>
+            <p class="home-moodle-label">注入區塊</p>
+            <article class="home-card" aria-label="AI協作型機械手臂能力檢定">
+              <div class="home-card-top">
+                <div>
+                  <h1>AI協作型機械手臂能力檢定</h1>
+                  <p class="hello">王老師，您好</p>
+                </div>
+                <a class="home-link-full" href="#sec-dash">完整儀表板 →</a>
+              </div>
+
+              <div class="home-facts">
+                <span class="pill">初級</span>
+                <span class="pill">中級</span>
+                <span class="pill ok">有效</span>
+              </div>
+              <p class="home-meta">更新效期期限：2027年 10月 13日</p>
+
+              <div class="home-section-label">下一場授課</div>
+              <div class="home-list">
+                <div class="home-item">
+                  <div>
+                    <div class="name">[初級]檢定課程</div>
+                    <div class="sub">8/15 09:00 · 台北 A · 12 人 · <span class="pill ok" style="margin-left:2px;">進行中</span></div>
+                  </div>
+                  <div class="ops">
+                    <span class="btn btn-primary btn-sm">輸入成績</span>
+                    <span class="btn btn-secondary btn-sm">名單</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="home-section-label">我的申請</div>
+              <div class="home-list">
+                <div class="home-item">
+                  <div>
+                    <div class="name">[高級]檢定課程</div>
+                    <div class="sub">8/22 13:00 · 高雄 C · <span class="pill">待審</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="home-actions">
+                <span class="btn btn-primary btn-sm">申請開課</span>
+                <span class="btn btn-secondary btn-sm">我的證書</span>
+              </div>
+            </article>
+          </div>
+        </div>
+        <div class="footer-note" style="margin-top:16px;border:0;padding-top:0;">
+          <strong>講師 · 為何這樣排</strong>
+          <ul>
+            <li><strong>資訊：</strong>認證等級＋效期（效期將屆／已過期改紅色警示）。</li>
+            <li><strong>下一場：</strong>直接「輸入成績」「名單」（臨時安插走名單頁）。</li>
+            <li><strong>按鈕：</strong>申請開課為主；保留我的證書（雙證書）。無審核／新增場次。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 學員 -->
+      <section id="view-home-examinee" class="view">
+        <div class="compare-strip">
+          <span class="tag old">舊：檢定管理中心</span>
+          <span class="tag">新：AI協作型機械手臂能力檢定</span>
+        </div>
+        <div class="home-rail">
+          <div>
+            <p class="home-moodle-label">Moodle 首頁內容區（示意）</p>
+            <div class="home-moodle-fake" aria-hidden="true">
+              <div class="fake-bar"></div>
+              <div class="fake-bar w2"></div>
+              <div class="fake-bar w3"></div>
+            </div>
+          </div>
+          <div>
+            <p class="home-moodle-label">注入區塊</p>
+            <article class="home-card" aria-label="AI協作型機械手臂能力檢定">
+              <div class="home-card-top">
+                <div>
+                  <h1>AI協作型機械手臂能力檢定</h1>
+                  <p class="hello">waylon su，您好</p>
+                </div>
+                <a class="home-link-full" href="#sec-dash">完整儀表板 →</a>
+              </div>
+
+              <div class="home-facts">
+                <span class="pill dim">尚無證書</span>
+                <span class="pill">考生編號 115069</span>
+              </div>
+
+              <div class="home-section-label">下一場考試</div>
+              <div class="home-list">
+                <div class="home-item">
+                  <div>
+                    <div class="name">[初級]檢定課程</div>
+                    <div class="sub">8/20 14:00 · 台北 A · 講師 王老師 · <span class="pill ok">進行中</span></div>
+                  </div>
+                  <div class="ops">
+                    <span class="btn btn-primary btn-sm">進入筆試</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="home-actions">
+                <span class="btn btn-secondary btn-sm">我的證書</span>
+                <span class="btn btn-secondary btn-sm">全部場次</span>
+              </div>
+            </article>
+          </div>
+        </div>
+        <div class="footer-note" style="margin-top:16px;border:0;padding-top:0;">
+          <strong>學員 · 為何這樣排</strong>
+          <ul>
+            <li><strong>資訊：</strong>檢定等級（或尚無）＋考生編號；無講師效期。</li>
+            <li><strong>下一場：</strong>時間／考場／講師；筆試可考時顯示「進入筆試」，否則灰態＋提示。</li>
+            <li><strong>按鈕：</strong>我的證書、全部場次；無申請開課／審核／術科輸入。</li>
+          </ul>
+        </div>
+      </section>
+    </section>
+
+
     <section class="sec" id="sec-dash" hidden>
-      <div class="sec-title">儀表板 · 檢定管理中心</div>
+      <div class="sec-title">儀表板 · 完整頁面（既有）</div>
       <div class="roles subnav" data-prefix="dash" role="tablist" aria-label="切換身分預覽">
       <button type="button" class="active" data-view="dash-manage">管理</button>
       <button type="button" data-view="dash-instruct">講師</button>
@@ -2138,7 +2617,7 @@
       });
     });
 
-    showSec("dash");
+    showSec("home");
   </script>
 </body>
 </html>

@@ -112,30 +112,92 @@ function local_tm_certification_before_standard_top_of_body_html(): string {
         .tm-cert-home-dashboard-wrapper .tm-cert-home-card {
             background: #fff;
             border: 1px solid #d5e0e5;
-            border-radius: 10px;
-            padding: 16px 18px;
-            box-shadow: 0 1px 2px rgba(0,95,126,.06);
+            border-radius: 12px;
+            padding: 16px 16px 14px;
+            box-shadow: 0 1px 0 rgba(21,37,44,.04);
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-card-top {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            gap: 10px; margin-bottom: 10px;
         }
         .tm-cert-home-dashboard-wrapper .tm-cert-home-title {
-            color: #005f7e;
-            margin: 0 0 .5rem 0;
-            font-size: 1.15rem;
-            font-weight: 700;
+            color: #005f7e; margin: 0; font-size: 1.05rem; font-weight: 700;
         }
         .tm-cert-home-dashboard-wrapper .tm-cert-home-subtitle {
-            margin: .5rem 0;
-            font-size: 1rem;
+            margin: 4px 0 0; font-size: .88rem; font-weight: 500; color: #15252c;
         }
-        .tm-cert-home-dashboard-wrapper .tm-cert-home-actions { margin-top: .75rem; }
-        .tm-cert-home-dashboard-wrapper .tm-cert-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 4px;
-            background: #e3f0f4;
-            color: #005f7e;
-            font-size: .85rem;
-            font-weight: 600;
-            margin: 0 6px 6px 0;
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-full-link {
+            font-size: .78rem; font-weight: 600; color: #5c717a; text-decoration: none; white-space: nowrap;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-full-link:hover { color: #005f7e; }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-kpis {
+            display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin: 4px 0 12px;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-kpi {
+            background: #f4f8fa; border: 1px solid #e2ebef; border-radius: 8px; padding: 10px;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-kpi .n {
+            font-size: 1.35rem; font-weight: 700; color: #005f7e; line-height: 1.1;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-kpi .n.warn { color: #c45c00; }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-kpi .l {
+            margin-top: 3px; font-size: .72rem; font-weight: 600; color: #5c717a;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-section-label {
+            margin: 10px 0 6px; font-size: .72rem; font-weight: 700;
+            letter-spacing: .04em; text-transform: uppercase; color: #5c717a;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-list {
+            border: 1px solid #d7e1e6; border-radius: 8px; overflow: hidden; margin-bottom: 4px;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-item {
+            display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
+            padding: 10px 12px; border-bottom: 1px solid #d7e1e6; background: #fff;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-item:last-child { border-bottom: 0; }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-item-name {
+            font-size: .88rem; font-weight: 600; color: #15252c;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-item-sub {
+            margin-top: 2px; font-size: .78rem; color: #5c717a;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-item-hint {
+            margin-top: 4px; font-size: .75rem; color: #5c717a;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-item-ops {
+            display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-empty {
+            padding: 14px 12px; text-align: center; font-size: .85rem; color: #5c717a;
+            border: 1px dashed #c5d4db; border-radius: 8px; background: #fafcfd;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-home-actions {
+            margin-top: 12px; padding-top: 12px; border-top: 1px solid #d7e1e6;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-facts {
+            display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-pill {
+            display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
+            font-size: .8rem; font-weight: 600; background: #e4eef2; color: #005f7e;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-pill.ok { background: #e6f5ea; color: #1b7a3d; }
+        .tm-cert-home-dashboard-wrapper .tm-cert-pill.bad { background: #fdecea; color: #b42318; }
+        .tm-cert-home-dashboard-wrapper .tm-cert-pill.dim { background: #eef1f3; color: #667985; }
+        .tm-cert-home-dashboard-wrapper .tm-cert-deadline {
+            margin: 6px 0 0; font-size: .82rem; color: #5c717a;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-deadline.urgent {
+            color: #b42318; font-weight: 600;
+        }
+        .tm-cert-home-dashboard-wrapper .tm-cert-btn-accent {
+            background: #74b42a !important; color: #fff !important; border-color: #74b42a !important;
+        }
+        @media (max-width: 480px) {
+            .tm-cert-home-dashboard-wrapper .tm-cert-home-kpis { grid-template-columns: 1fr; }
+            .tm-cert-home-dashboard-wrapper .tm-cert-home-item { grid-template-columns: 1fr; }
+            .tm-cert-home-dashboard-wrapper .tm-cert-home-item-ops { justify-content: flex-start; }
         }
     ');
 
