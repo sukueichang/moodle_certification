@@ -17,12 +17,19 @@ class batch_helper {
 
     /**
      * Public CSV template body (UTF-8 BOM for Excel).
+     * Header labels follow the current UI language; import accepts EN + ZH aliases.
      */
     public static function template_csv(): string {
         $bom = "\xEF\xBB\xBF";
         // Moodle lastname = 姓, firstname = 名; username will be allocated candidate ID.
-        return $bom . "lastname,firstname,email,institution\n"
-            . "王,美,mei.wang@example.com,Techman\n";
+        $header = self::csv_escape_line([
+            get_string('batch_csv_lastname', 'local_tm_certification'),
+            get_string('batch_csv_firstname', 'local_tm_certification'),
+            get_string('batch_csv_email', 'local_tm_certification'),
+            get_string('batch_csv_institution', 'local_tm_certification'),
+        ]);
+        $sample = self::csv_escape_line(['王', '美', 'mei.wang@example.com', 'Techman']);
+        return $bom . $header . "\n" . $sample . "\n";
     }
 
     /**
@@ -393,11 +400,24 @@ class batch_helper {
      */
     private static function map_headers(array $header): array {
         $map = ['firstname' => null, 'lastname' => null, 'email' => null, 'institution' => null];
+        // Fixed synonyms + current-language template labels (so download ↔ upload always match).
         $aliases = [
-            'firstname' => ['firstname', 'first_name', 'first name', '名', '名字'],
-            'lastname' => ['lastname', 'last_name', 'last name', '姓', '姓氏'],
-            'email' => ['email', 'e-mail', 'mail', '電子郵件', '信箱', 'emailaddress'],
-            'institution' => ['institution', 'company', 'org', 'organization', '單位', '機構', '公司'],
+            'lastname' => self::header_alias_list('batch_csv_lastname', [
+                'lastname', 'last_name', 'last name', 'family name', 'familyname',
+                '姓', '姓氏',
+            ]),
+            'firstname' => self::header_alias_list('batch_csv_firstname', [
+                'firstname', 'first_name', 'first name', 'given name', 'givenname',
+                '名', '名字',
+            ]),
+            'email' => self::header_alias_list('batch_csv_email', [
+                'email', 'e-mail', 'mail', 'emailaddress', 'email address',
+                '電子郵件', '电子信箱', '电子邮箱', '信箱', '邮箱',
+            ]),
+            'institution' => self::header_alias_list('batch_csv_institution', [
+                'institution', 'company', 'org', 'organization', 'school', 'schoolname', 'school name',
+                '單位', '单位', '機構', '机构', '公司', '學校名', '学校名', '學校', '学校',
+            ]),
         ];
         foreach ($header as $idx => $raw) {
             $key = \core_text::strtolower(trim((string)$raw));
@@ -409,6 +429,23 @@ class batch_helper {
             }
         }
         return $map;
+    }
+
+    /**
+     * @param string[] $fixed
+     * @return string[] lowercased unique aliases
+     */
+    private static function header_alias_list(string $langkey, array $fixed): array {
+        $names = $fixed;
+        $names[] = get_string($langkey, 'local_tm_certification');
+        $out = [];
+        foreach ($names as $name) {
+            $n = \core_text::strtolower(trim((string)$name));
+            if ($n !== '') {
+                $out[$n] = true;
+            }
+        }
+        return array_keys($out);
     }
 
     private static function strip_bom(string $content): string {

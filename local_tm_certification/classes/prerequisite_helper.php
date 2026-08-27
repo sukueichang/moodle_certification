@@ -3,7 +3,8 @@
  * Prerequisite checks for intermediate / advanced enrolment.
  *
  * Mid/adv never create accounts; lookup by email and require previous level pass
- * (written if required + practical), any instructor/venue.
+ * (written if required + practical via plugin score or legacy attendance 〔參〕),
+ * any instructor/venue.
  *
  * @package    local_tm_certification
  */
@@ -16,6 +17,7 @@ require_once(__DIR__ . '/session_manager.php');
 require_once(__DIR__ . '/assessment_manager.php');
 require_once(__DIR__ . '/candidate_manager.php');
 require_once(__DIR__ . '/enrolment_manager.php');
+require_once(__DIR__ . '/attendance_helper.php');
 
 class prerequisite_helper {
 
@@ -73,8 +75,11 @@ class prerequisite_helper {
     /**
      * Whether the user has overall-passed the given level on any session (any venue/instructor).
      *
-     * Written (if required) uses level quiz grade; practical uses any non-cancelled enrol
-     * on a session of that level with practicalpass=1.
+     * Written (if required) uses level quiz grade.
+     * Practical is satisfied by either:
+     * - any non-cancelled enrol on a session of that level with practicalpass=1, or
+     * - at least one 〔參〕/Present mark on the level's mapped mod_attendance
+     *   (legacy learners who passed before plugin practical scores existed).
      *
      * @return array{
      *   passed:bool,
@@ -110,6 +115,9 @@ class prerequisite_helper {
                 $practicalok = true;
                 break;
             }
+        }
+        if (!$practicalok) {
+            $practicalok = attendance_helper::user_has_present_mark_for_level($userid, $level);
         }
 
         $passed = $practicalok && $writtenok;

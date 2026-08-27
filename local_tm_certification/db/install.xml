@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="local/tm_certification/db" VERSION="2026073000" COMMENT="TM Certification DB Schema">
+<XMLDB PATH="local/tm_certification/db" VERSION="2026073034" COMMENT="TM Certification DB Schema">
   <TABLES>
 
     <TABLE NAME="local_tm_cert_sessions" COMMENT="Certification exam sessions">
@@ -140,6 +140,8 @@
         <FIELD NAME="timesubmitted" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
         <FIELD NAME="timereviewed" TYPE="int" LENGTH="10" NOTNULL="false"/>
         <FIELD NAME="reviewedby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timedeleted" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"
+               COMMENT="0=visible to applicant; unix time when soft-deleted (admin still sees)"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
@@ -149,6 +151,7 @@
         <INDEX NAME="idx_applicant" UNIQUE="false" FIELDS="applicantid"/>
         <INDEX NAME="idx_instructor" UNIQUE="false" FIELDS="instructorid"/>
         <INDEX NAME="idx_sessionid" UNIQUE="false" FIELDS="sessionid"/>
+        <INDEX NAME="idx_timedeleted" UNIQUE="false" FIELDS="timedeleted"/>
       </INDEXES>
     </TABLE>
 
@@ -189,6 +192,20 @@
         <INDEX NAME="idx_app" UNIQUE="false" FIELDS="applicationid"/>
         <INDEX NAME="idx_email" UNIQUE="false" FIELDS="email"/>
       </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_pwbackup" COMMENT="Pre-roster password hash backup for existing accounts">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="passwordhash" TYPE="char" LENGTH="255" NOTNULL="true"
+               COMMENT="Moodle user.password hash before Tmai reset"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="uq_userid" TYPE="unique" FIELDS="userid"/>
+      </KEYS>
     </TABLE>
 
   </TABLES>

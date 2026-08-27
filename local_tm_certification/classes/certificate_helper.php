@@ -46,25 +46,38 @@ class certificate_helper {
     }
 
     /**
-     * Highest mapped exam level the user can currently receive or has issued.
+     * All mapped exam levels the user can currently receive or has issued
+     * (basic → intermediate → advanced order; one entry per level).
+     *
+     * @return string[] level codes
      */
-    public static function get_user_highest_exam_level(int $userid): ?string {
+    public static function get_user_exam_levels(int $userid): array {
         $rank = [
             session_manager::LEVEL_BASIC => 1,
             session_manager::LEVEL_INTERMEDIATE => 2,
             session_manager::LEVEL_ADVANCED => 3,
         ];
-        $best = null;
-        $bestrank = 0;
+        $found = [];
         foreach (self::get_user_exam_certificates($userid) as $row) {
             $lv = (string)($row->certlevel ?? '');
-            $r = $rank[$lv] ?? 0;
-            if ($r > $bestrank) {
-                $bestrank = $r;
-                $best = $lv;
+            if ($lv === '' || !isset($rank[$lv])) {
+                continue;
             }
+            $found[$lv] = $rank[$lv];
         }
-        return $best;
+        asort($found, SORT_NUMERIC);
+        return array_keys($found);
+    }
+
+    /**
+     * Highest mapped exam level the user can currently receive or has issued.
+     */
+    public static function get_user_highest_exam_level(int $userid): ?string {
+        $levels = self::get_user_exam_levels($userid);
+        if (empty($levels)) {
+            return null;
+        }
+        return end($levels);
     }
 
     /**

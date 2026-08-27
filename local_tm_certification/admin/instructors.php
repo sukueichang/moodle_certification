@@ -9,8 +9,10 @@ require_once(__DIR__ . '/../../../config.php');
 require_once(__DIR__ . '/../classes/permissions_manager.php');
 require_once(__DIR__ . '/../classes/session_manager.php');
 require_once(__DIR__ . '/../classes/catalog_manager.php');
+require_once(__DIR__ . '/../classes/course_access_helper.php');
 
 use local_tm_certification\catalog_manager;
+use local_tm_certification\course_access_helper;
 use local_tm_certification\permissions_manager;
 use local_tm_certification\session_manager;
 
@@ -43,6 +45,8 @@ if (data_submitted() && confirm_sesskey()) {
         catalog_manager::set_instructor_qualification($userid, $lv, $active);
     }
     catalog_manager::save_instructor_cert_profile($userid, $certifiedat, $renewedat);
+    // Open all mapped level courses + instructor zone while instruct identity holds.
+    course_access_helper::sync_instructor_access($userid);
     redirect($PAGE->url, get_string('instructor_levels_saved', 'local_tm_certification'), null,
         \core\output\notification::NOTIFY_SUCCESS);
 }

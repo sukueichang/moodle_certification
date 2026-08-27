@@ -200,7 +200,8 @@ class candidate_manager {
     }
 
     /**
-     * Release candidate ID binding when an examinee account is deleted.
+     * Release candidate ID binding (unused first participation on existing account,
+     * or before deleting a plugin-created examinee account).
      */
     public static function release_for_userid(int $userid): void {
         global $DB;

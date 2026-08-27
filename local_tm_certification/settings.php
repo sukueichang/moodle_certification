@@ -14,6 +14,7 @@ if ($hassiteconfig) {
     require_once(__DIR__ . '/lib.php');
     require_once(__DIR__ . '/classes/permissions_manager.php');
     require_once(__DIR__ . '/classes/session_manager.php');
+    require_once(__DIR__ . '/classes/course_access_helper.php');
 
     if (!$ADMIN->locate('local_tm_certification_cat')) {
         $ADMIN->add('localplugins', new admin_category(
@@ -90,6 +91,18 @@ if ($hassiteconfig) {
                 $courseopts
             ));
         }
+        $map->add(new admin_setting_configselect(
+            'local_tm_certification/' . \local_tm_certification\course_access_helper::CFG_MAPPING_INSTRUCTOR,
+            get_string('setting_coursemap_instructor', 'local_tm_certification'),
+            get_string('setting_coursemap_instructor_desc', 'local_tm_certification'),
+            0,
+            $courseopts
+        ));
+        $map->add(new admin_setting_heading(
+            'local_tm_certification_coursemap_access_h',
+            get_string('setting_coursemap_access_heading', 'local_tm_certification'),
+            get_string('setting_coursemap_access_desc', 'local_tm_certification')
+        ));
     }
     if (!$ADMIN->locate('local_tm_certification_coursemap')) {
         $ADMIN->add('local_tm_certification_cat', $map);

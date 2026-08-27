@@ -1,5 +1,66 @@
 # BUGFIX_LOG — local_tm_certification
 
+> **文件角色：** 每次回報問題後，記錄現象／根因／解法／預防準則。  
+> **使用時機：** **每次開發或修 bug 開工前**，先掃本檔「強制檢查清單」與近期條目。  
+> **相關：** [`DEV_WORKFLOW.md`](DEV_WORKFLOW.md)／[`FEATURE_LOG.md`](FEATURE_LOG.md)
+
+---
+
+## 強制檢查清單（開工前必跑）
+
+- [ ] 新增資料表：表名長度 **≤ 28**（Moodle XMLDB）
+- [ ] 新增 CHAR 欄位：禁止 `NOTNULL + DEFAULT ''`
+- [ ] 新增 `AJAX_SCRIPT`：`require_login()` 後立刻 `$PAGE->set_context()`
+- [ ] `get_records_sql()`：第一欄必須唯一（通常 `id`）
+- [ ] 新增 `get_string` key：至少同步 `lang/en` + `lang/zh_tw`（有維護 zh_cn 則一併）
+- [ ] 破壞性操作：二次確認 + 後端驗證
+- [ ] 升級期間禁止呼叫會 `rebuild_course_cache` 的 `update_course`（見 BUG-20260817-01）
+- [ ] Windows 打包 zip：用 `tar.exe`，內部路徑必須是 `/` 而非 `\`（見 [`DEV_WORKFLOW.md` §4](DEV_WORKFLOW.md#4-打包外掛-zipwindows上傳-moodle)）
+- [ ] 升級頁 `cURL`／遠端 plugin API 錯誤 ≠ DB 升級失敗，可繼續本地升級
+
+---
+
+## 2026-08-26 — Windows 打包 zip 上傳 Moodle「無法偵測到外掛類型」（對齊 register）
+
+### 問題現象
+- 在 Windows 用 PowerShell `Compress-Archive`／`ZipFile::CreateFromDirectory` 打包後，Moodle 安裝頁顯示「無法偵測到外掛類型」。
+
+### 根因
+- ZIP 規範要求內部路徑用 `/`；上述 .NET Framework API 在 Windows 會寫入 `\`，Moodle 的 `ZipArchive` 無法辨識目錄結構與 `version.php`。
+
+### 解法／預防
+- 一律 `tar.exe -a -c -f local_tm_certification.zip -C "<專案根>" local_tm_certification`；上傳前檢查 0 筆含 `\` 的條目。細節見 `DEV_WORKFLOW.md` §4。
+
+---
+
+## 2026-08-25
+
+### [BUG-20260825-01] 外掛上架前已通過術科者無法加入中／高級
+- **現象**  
+  上傳中級名單時，外掛上架前已在初級出缺席勾選〔參〕的學員被標「前一等級術科未通過」，無法送出。
+- **根因**  
+  前置檢查只認外掛 `practicalpass=1`，未認舊制以 `mod_attendance`〔參〕為術科通過的紀錄。
+- **修復**  
+  `evaluate_level_pass`：外掛術科通過 **或** 該等級對照出缺席活動任一時段有〔參〕／Present，皆算術科達標。
+- **影響檔案**  
+  `classes/prerequisite_helper.php`、`classes/attendance_helper.php`、語系、`version.php`（0.9.9／2026073041）
+- **結果**  
+  舊制已勾〔參〕的學員可通過中／高級前置檢查（仍須帳號、考生編號、筆試若必要）。
+
+## 2026-08-17
+
+### [BUG-20260817-01] 升級時「更新時無法執行」／rebuild_course_cache
+- **現象**  
+  升級 `local_tm_certification` 時出現多筆 debugging：`更新時無法執行`，堆疊含 `update_course` → `rebuild_course_cache` → `upgrade_ensure_not_running`（測試站／正式站皆有）。
+- **根因**  
+  `2026073037` 在 upgrade 中呼叫 `harden_all_mapped_courses()` → `update_course()`；Moodle 升級期間禁止重建課程快取。
+- **修復**  
+  `harden_mapped_course()` 偵測 `$CFG->upgraderunning` 時改為只寫 `course`／`enrol` 欄位，不呼叫 `update_course`／enrol `update_status`；`2026073039` 再安全重套一次。
+- **影響檔案**  
+  `classes/course_access_helper.php`、`db/upgrade.php`、`version.php`（0.9.7／2026073039）
+- **結果**  
+  後續升級不應再出現該警告；升級 savepoint 仍會成功。
+
 ## 2026-07-29
 
 ### [BUG-20260729-01] 建立場次頁 fullname() debugging

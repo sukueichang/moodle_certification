@@ -59,6 +59,12 @@ if ($cancelid && $confirmremove && confirm_sesskey() && $canremove) {
             'name' => $assessment['fullname'],
             'username' => $assessment['username'],
         ]);
+        if (!empty($result['released_candidate_id'])) {
+            $msg .= ' ' . get_string('enrol_removed_released_id', 'local_tm_certification');
+        }
+        if (!empty($result['restored_password'])) {
+            $msg .= ' ' . get_string('enrol_removed_restored_password', 'local_tm_certification');
+        }
     }
     redirect($rosterurl, $msg, null, \core\output\notification::NOTIFY_SUCCESS);
 }
@@ -81,6 +87,12 @@ if ($cancelid && !$confirmremove && $canremove) {
         echo $OUTPUT->notification(get_string('enrol_remove_will_delete', 'local_tm_certification'), 'warning');
     } else {
         echo $OUTPUT->notification(get_string('enrol_remove_keep_account', 'local_tm_certification'), 'info');
+        if (!empty($assessment['will_release_candidate_id'])) {
+            echo $OUTPUT->notification(get_string('enrol_remove_will_release_id', 'local_tm_certification'), 'info');
+        }
+        if (!empty($assessment['will_restore_password'])) {
+            echo $OUTPUT->notification(get_string('enrol_remove_will_restore_password', 'local_tm_certification'), 'info');
+        }
     }
     $yesurl = new moodle_url('/local/tm_certification/admin/roster.php', [
         'sessionid' => $sessionid,

@@ -99,6 +99,7 @@ class application_manager {
         $record->timesubmitted = $now;
         $record->timereviewed = null;
         $record->reviewedby = 0;
+        $record->timedeleted = 0;
 
         return (int)$DB->insert_record('local_tm_cert_apps', $record);
     }
@@ -143,7 +144,14 @@ class application_manager {
     }
 
     /**
-     * @param array $filters keys: status, applicantid, instructorid
+     * Soft-deleted for applicant UI (admin review still lists the row).
+     */
+    public static function is_deleted(\stdClass $app): bool {
+        return (int)($app->timedeleted ?? 0) > 0;
+    }
+
+    /**
+     * @param array $filters keys: status, applicantid, instructorid, include_deleted (bool, default false)
      * @return \stdClass[]
      */
     public static function get_applications(array $filters = []): array {
@@ -162,6 +170,10 @@ class application_manager {
         if (!empty($filters['instructorid'])) {
             $where[] = 'a.instructorid = :instructorid';
             $params['instructorid'] = (int)$filters['instructorid'];
+        }
+        // Soft-deleted rows stay for admin review; hide from applicant/default lists.
+        if (empty($filters['include_deleted'])) {
+            $where[] = 'a.timedeleted = 0';
         }
 
         $sql = 'SELECT a.*, v.name AS venuename, v.venuecode,
@@ -280,6 +292,29 @@ class application_manager {
 
         require_once(__DIR__ . '/notification_helper.php');
         notification_helper::notify_application_rejected($appid);
+    }
+
+    /**
+     * Soft-delete a reviewed application (approved/rejected only).
+     * Does not touch the linked session or roster.
+     */
+    public static function soft_delete(int $appid): void {
+        global $DB;
+
+        $app = self::get_application($appid);
+        if ((int)$app->status === self::STATUS_PENDING) {
+            throw new \moodle_exception('error_app_delete_pending', 'local_tm_certification');
+        }
+        if (self::is_deleted($app)) {
+            throw new \moodle_exception('error_app_already_deleted', 'local_tm_certification');
+        }
+
+        $now = time();
+        $upd = new \stdClass();
+        $upd->id = $appid;
+        $upd->timedeleted = $now;
+        $upd->timemodified = $now;
+        $DB->update_record('local_tm_cert_apps', $upd);
     }
 
     /**

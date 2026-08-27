@@ -21,6 +21,7 @@ if (!permissions_manager::user_can_approve() && !permissions_manager::user_can_m
     throw new moodle_exception('error_view_access_denied', 'local_tm_certification');
 }
 
+$canmanage = permissions_manager::user_can_manage();
 $action = optional_param('action', '', PARAM_ALPHA);
 $appid = optional_param('id', 0, PARAM_INT);
 $note = optional_param('managernote', '', PARAM_TEXT);
@@ -81,9 +82,32 @@ if ($action === 'reject' && $appid && $confirm) {
     }
 }
 
+if ($action === 'delete' && $appid && $canmanage) {
+    require_sesskey();
+    try {
+        application_manager::soft_delete($appid);
+        redirect(
+            new moodle_url('/local/tm_certification/admin/review.php', ['status' => $filterstatus]),
+            get_string('app_deleted', 'local_tm_certification'),
+            null,
+            \core\output\notification::NOTIFY_SUCCESS
+        );
+    } catch (moodle_exception $e) {
+        redirect(
+            new moodle_url('/local/tm_certification/admin/review.php', ['status' => $filterstatus]),
+            $e->getMessage(),
+            null,
+            \core\output\notification::NOTIFY_ERROR
+        );
+    }
+}
+
 $levels = session_manager::level_options();
 $statusopts = application_manager::status_options();
-$apps = application_manager::get_applications(['status' => $filterstatus]);
+$apps = application_manager::get_applications([
+    'status' => $filterstatus,
+    'include_deleted' => true,
+]);
 
 echo $OUTPUT->header();
 
@@ -180,6 +204,7 @@ if (empty($apps)) {
         }
         $applicantnote = trim((string)($app->applicantnote ?? ''));
         $managernote = trim((string)($app->managernote ?? ''));
+        $deleted = application_manager::is_deleted($app);
         $actions = '';
         if ((int)$app->status === application_manager::STATUS_PENDING) {
             $actions .= html_writer::link(
@@ -200,12 +225,33 @@ if (empty($apps)) {
                 get_string('app_action_reject', 'local_tm_certification'),
                 ['class' => 'btn btn-sm btn-danger']
             );
-        } else if (!empty($app->sessionid)) {
-            $actions = html_writer::link(
-                new moodle_url('/local/tm_certification/admin/roster.php', ['sessionid' => $app->sessionid]),
-                get_string('dash_action_roster', 'local_tm_certification'),
-                ['class' => 'btn btn-sm btn-secondary']
-            );
+        } else {
+            if (!empty($app->sessionid)) {
+                $actions .= html_writer::link(
+                    new moodle_url('/local/tm_certification/admin/roster.php', ['sessionid' => $app->sessionid]),
+                    get_string('dash_action_roster', 'local_tm_certification'),
+                    ['class' => 'btn btn-sm btn-secondary']
+                ) . ' ';
+            }
+            if ($canmanage && !$deleted) {
+                $actions .= html_writer::link(
+                    new moodle_url('/local/tm_certification/admin/review.php', [
+                        'action' => 'delete',
+                        'id' => $app->id,
+                        'status' => $filterstatus,
+                        'sesskey' => sesskey(),
+                    ]),
+                    get_string('app_action_delete', 'local_tm_certification'),
+                    [
+                        'class' => 'btn btn-sm btn-danger',
+                        'onclick' => 'return confirm(' . json_encode(get_string('app_delete_confirm', 'local_tm_certification')) . ');',
+                    ]
+                );
+            }
+        }
+        $statuslabel = $statusopts[(int)$app->status] ?? (string)$app->status;
+        if ($deleted) {
+            $statuslabel .= ' · ' . get_string('app_status_deleted', 'local_tm_certification');
         }
         $table->data[] = [
             (int)$app->id,
@@ -216,7 +262,7 @@ if (empty($apps)) {
             userdate((int)$app->starttime, get_string('strftimedatetimeshort', 'langconfig')),
             $applicantnote !== '' ? format_text($applicantnote, FORMAT_PLAIN) : '—',
             $managernote !== '' ? format_text($managernote, FORMAT_PLAIN) : '—',
-            $statusopts[(int)$app->status] ?? (string)$app->status,
+            $statuslabel,
             $actions,
         ];
     }

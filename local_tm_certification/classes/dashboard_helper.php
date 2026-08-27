@@ -115,14 +115,16 @@ class dashboard_helper {
 
         if ($view === 'examinee') {
             $levelopts = session_manager::level_options();
-            $examlevel = certificate_helper::get_user_highest_exam_level((int)$user->id);
+            // Same pattern as instructor: one pill/tab per held exam level.
+            $examlevels = certificate_helper::get_user_exam_levels((int)$user->id);
             $badges = [];
-            if ($examlevel) {
+            foreach ($examlevels as $lv) {
                 $badges[] = [
-                    'label' => $levelopts[$examlevel] ?? $examlevel,
+                    'label' => $levelopts[$lv] ?? $lv,
                     'mod' => '',
                 ];
-            } else {
+            }
+            if (empty($badges)) {
                 $badges[] = [
                     'label' => get_string('dash_badge_exam_level_none', 'local_tm_certification'),
                     'mod' => 'dim',
@@ -277,6 +279,10 @@ class dashboard_helper {
      * @param array $cover
      */
     private static function render_home_instruct_body(array $cover, int $userid): string {
+        require_once(__DIR__ . '/course_access_helper.php');
+        // Ensure instructor can open mapped level courses + instructor zone.
+        course_access_helper::sync_instructor_access($userid);
+
         $levels = session_manager::level_options();
         $statusopts = application_manager::status_options();
 

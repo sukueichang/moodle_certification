@@ -234,10 +234,101 @@ class attendance_helper {
     }
 
     /**
+     * Whether the user has at least one 〔參〕/Present mark on the level's mapped attendance activity.
+     * Used for legacy learners who passed practical before this plugin tracked practicalpass.
+     */
+    public static function user_has_present_mark_for_level(int $userid, string $level): bool {
+        global $DB;
+
+        if ($userid <= 0) {
+            return false;
+        }
+        $cmid = catalog_manager::get_attendance_cmid_for_level($level);
+        $resolved = self::resolve_from_cmid($cmid);
+        if (!$resolved) {
+            return false;
+        }
+
+        $statusids = self::present_status_ids((int)$resolved['attendanceid']);
+        if (empty($statusids)) {
+            return false;
+        }
+
+        list($insql, $params) = $DB->get_in_or_equal($statusids, SQL_PARAMS_NAMED, 'st');
+        $params['userid'] = $userid;
+        $params['aid'] = (int)$resolved['attendanceid'];
+
+        $sql = "SELECT 1
+                  FROM {attendance_log} l
+                  JOIN {attendance_sessions} s ON s.id = l.sessionid
+                 WHERE l.studentid = :userid
+                   AND s.attendanceid = :aid
+                   AND l.statusid {$insql}";
+        return $DB->record_exists_sql($sql, $params);
+    }
+
+    /**
+     * All status ids that count as 〔參〕/Present for an attendance activity.
+     *
+     * @return int[]
+     */
+    public static function present_status_ids(int $attendanceid): array {
+        global $DB;
+
+        if ($attendanceid <= 0) {
+            return [];
+        }
+
+        $ids = [];
+        $override = (int)get_config('local_tm_certification', 'attendance_statusid_present');
+        if ($override > 0 && $DB->record_exists('attendance_statuses', [
+            'id' => $override,
+            'attendanceid' => $attendanceid,
+            'deleted' => 0,
+        ])) {
+            $ids[] = $override;
+        }
+
+        $rows = $DB->get_records('attendance_statuses', [
+            'attendanceid' => $attendanceid,
+            'deleted' => 0,
+        ]);
+        if (empty($rows)) {
+            return $ids;
+        }
+
+        $acronyms = ['參', 'PR', 'Pr', 'P', 'Present', '出席'];
+        foreach ($rows as $row) {
+            $acronym = trim((string)($row->acronym ?? ''));
+            foreach ($acronyms as $want) {
+                if (strcasecmp($acronym, $want) === 0) {
+                    $ids[] = (int)$row->id;
+                    continue 2;
+                }
+            }
+            $desc = trim((string)($row->description ?? ''));
+            $descl = \core_text::strtolower($desc);
+            if ($desc === '出席' || $desc === '參' || $descl === 'present'
+                    || strpos($desc, '〔參〕') !== false) {
+                $ids[] = (int)$row->id;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
      * Resolve Present/Absent status id (supports 〔參〕／〔缺〕 and EN acronyms).
      */
     public static function resolve_status_id(int $attendanceid, bool $present): int {
         global $DB;
+
+        if ($present) {
+            $ids = self::present_status_ids($attendanceid);
+            if (!empty($ids)) {
+                return (int)$ids[0];
+            }
+        }
 
         $cfgkey = $present ? 'attendance_statusid_present' : 'attendance_statusid_absent';
         $override = (int)get_config('local_tm_certification', $cfgkey);

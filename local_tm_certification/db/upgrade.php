@@ -214,5 +214,53 @@ function xmldb_local_tm_certification_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026073000, 'local', 'tm_certification');
     }
 
+    if ($oldversion < 2026073034) {
+        $pwtable = new xmldb_table('local_tm_cert_pwbackup');
+        if (!$dbman->table_exists($pwtable)) {
+            $pwtable->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $pwtable->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $pwtable->add_field('passwordhash', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, null);
+            $pwtable->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $pwtable->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $pwtable->add_key('uq_userid', XMLDB_KEY_UNIQUE, ['userid']);
+            $dbman->create_table($pwtable);
+        }
+        upgrade_plugin_savepoint(true, 2026073034, 'local', 'tm_certification');
+    }
+
+    if ($oldversion < 2026073037) {
+        // Formerly enabled auto-harden of mapped courses; feature removed (see 2026073040).
+        upgrade_plugin_savepoint(true, 2026073037, 'local', 'tm_certification');
+    }
+
+    if ($oldversion < 2026073038) {
+        $apptable = new xmldb_table('local_tm_cert_apps');
+        $timedeleted = new xmldb_field('timedeleted', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'reviewedby');
+        if (!$dbman->field_exists($apptable, $timedeleted)) {
+            $dbman->add_field($apptable, $timedeleted);
+        }
+        $idx = new xmldb_index('idx_timedeleted', XMLDB_INDEX_NOTUNIQUE, ['timedeleted']);
+        if (!$dbman->index_exists($apptable, $idx)) {
+            $dbman->add_index($apptable, $idx);
+        }
+        upgrade_plugin_savepoint(true, 2026073038, 'local', 'tm_certification');
+    }
+
+    if ($oldversion < 2026073039) {
+        // Formerly re-applied auto-harden; feature removed (see 2026073040).
+        upgrade_plugin_savepoint(true, 2026073039, 'local', 'tm_certification');
+    }
+
+    if ($oldversion < 2026073040) {
+        // Drop auto-hide setting; do not change course visibility (site admin may restore manually).
+        unset_config('auto_harden_mapped_courses', 'local_tm_certification');
+        upgrade_plugin_savepoint(true, 2026073040, 'local', 'tm_certification');
+    }
+
+    if ($oldversion < 2026073041) {
+        // Prerequisite practical: also accept legacy 〔參〕 on mapped attendance (no DB change).
+        upgrade_plugin_savepoint(true, 2026073041, 'local', 'tm_certification');
+    }
+
     return true;
 }

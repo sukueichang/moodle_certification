@@ -12,9 +12,11 @@ require_once(__DIR__ . '/classes/session_manager.php');
 require_once(__DIR__ . '/classes/application_manager.php');
 require_once(__DIR__ . '/classes/enrolment_manager.php');
 require_once(__DIR__ . '/classes/assessment_manager.php');
+require_once(__DIR__ . '/classes/course_access_helper.php');
 
 use local_tm_certification\application_manager;
 use local_tm_certification\assessment_manager;
+use local_tm_certification\course_access_helper;
 use local_tm_certification\dashboard_helper;
 use local_tm_certification\enrolment_manager;
 use local_tm_certification\permissions_manager;
@@ -34,6 +36,9 @@ if (!permissions_manager::is_dashboard_globally_enabled() && !permissions_manage
 }
 
 $view = permissions_manager::resolve_dashboard_view();
+if ($view === 'instruct') {
+    course_access_helper::sync_instructor_access((int)$USER->id);
+}
 if ($view === 'none') {
     $PAGE->set_title(get_string('nav_dashboard', 'local_tm_certification'));
     $PAGE->set_heading(get_string('nav_dashboard', 'local_tm_certification'));

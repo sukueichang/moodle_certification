@@ -149,6 +149,7 @@ class enrolment_manager {
 
     /**
      * Set examinee Moodle password to Tmai + candidate ID (manual add / batch).
+     * Backs up the previous hash once (for existing accounts) so roster removal can restore it.
      * Always clears force-password-change so class-day login works with the roster sheet.
      */
     public static function apply_default_password(int $userid, string $candidateid): string {
@@ -164,9 +165,80 @@ class enrolment_manager {
                 DEBUG_DEVELOPER
             );
         }
+        self::backup_password_hash_once($userid);
         \update_internal_user_password($user, $plain);
         self::clear_force_password_change($userid);
         return $plain;
+    }
+
+    /**
+     * Store current user.password hash once per userid (do not overwrite).
+     */
+    public static function backup_password_hash_once(int $userid): void {
+        global $DB;
+
+        if ($userid < 2) {
+            return;
+        }
+        if (!$DB->get_manager()->table_exists('local_tm_cert_pwbackup')) {
+            return;
+        }
+        if ($DB->record_exists('local_tm_cert_pwbackup', ['userid' => $userid])) {
+            return;
+        }
+        $hash = $DB->get_field('user', 'password', ['id' => $userid, 'deleted' => 0]);
+        if ($hash === false || $hash === null || $hash === '') {
+            return;
+        }
+        $row = new \stdClass();
+        $row->userid = $userid;
+        $row->passwordhash = (string)$hash;
+        $row->timecreated = time();
+        try {
+            $DB->insert_record('local_tm_cert_pwbackup', $row);
+        } catch (\dml_exception $e) {
+            // Concurrent insert for same userid is fine.
+            if (!$DB->record_exists('local_tm_cert_pwbackup', ['userid' => $userid])) {
+                throw $e;
+            }
+        }
+    }
+
+    /**
+     * Restore backed-up password hash and clear backup. No-op if none stored.
+     *
+     * @return bool true when a backup was applied
+     */
+    public static function restore_password_hash(int $userid): bool {
+        global $DB;
+
+        if ($userid < 2 || !$DB->get_manager()->table_exists('local_tm_cert_pwbackup')) {
+            return false;
+        }
+        $backup = $DB->get_record('local_tm_cert_pwbackup', ['userid' => $userid]);
+        if (!$backup || (string)$backup->passwordhash === '') {
+            return false;
+        }
+        $user = $DB->get_record('user', ['id' => $userid, 'deleted' => 0], 'id', IGNORE_MISSING);
+        if (!$user) {
+            $DB->delete_records('local_tm_cert_pwbackup', ['userid' => $userid]);
+            return false;
+        }
+        $DB->set_field('user', 'password', (string)$backup->passwordhash, ['id' => $userid]);
+        self::clear_force_password_change($userid);
+        $DB->delete_records('local_tm_cert_pwbackup', ['userid' => $userid]);
+        return true;
+    }
+
+    /**
+     * Drop password backup without restoring (e.g. account deleted).
+     */
+    public static function discard_password_backup(int $userid): void {
+        global $DB;
+        if ($userid < 2 || !$DB->get_manager()->table_exists('local_tm_cert_pwbackup')) {
+            return;
+        }
+        $DB->delete_records('local_tm_cert_pwbackup', ['userid' => $userid]);
     }
 
     private static function clear_force_password_change(int $userid): void {
@@ -176,6 +248,63 @@ class enrolment_manager {
         if ($DB->get_manager()->field_exists($usertable, $forcepwfield)) {
             $DB->set_field('user', 'forcepasswordchange', 0, ['id' => $userid]);
         }
+    }
+
+    /**
+     * Count other non-cancelled roster rows for a user (optionally excluding one enrol id).
+     */
+    public static function count_other_active_enrols(int $userid, int $excludingenrolid = 0): int {
+        global $DB;
+        $select = 'userid = :userid AND status <> :cancelled';
+        $params = [
+            'userid' => $userid,
+            'cancelled' => self::ENROL_CANCELLED,
+        ];
+        if ($excludingenrolid > 0) {
+            $select .= ' AND id <> :enrolid';
+            $params['enrolid'] = $excludingenrolid;
+        }
+        return (int)$DB->count_records_select('local_tm_cert_enrols', $select, $params);
+    }
+
+    /**
+     * True when user has cert usage that must keep the candidate ID (quiz / practical).
+     */
+    public static function user_has_cert_usage_traces(int $userid): bool {
+        global $DB;
+
+        if ($DB->get_manager()->table_exists('quiz_attempts')
+                && $DB->record_exists('quiz_attempts', ['userid' => $userid])) {
+            return true;
+        }
+
+        return $DB->record_exists_select(
+            'local_tm_cert_enrols',
+            'userid = :userid AND (practicalpass = 1 OR practicalscore IS NOT NULL)',
+            ['userid' => $userid]
+        );
+    }
+
+    /**
+     * Existing account (username ≠ candidate ID): first unused cert participation may release ID on remove.
+     */
+    public static function should_release_candidate_id_on_remove(int $userid, int $excludingenrolid, string $username): bool {
+        require_once(__DIR__ . '/candidate_manager.php');
+
+        if (candidate_manager::is_candidate_id_format($username)) {
+            // Username is the ID — only freed when the Moodle account is deleted.
+            return false;
+        }
+        if (candidate_manager::get_candidate_id($userid) === null) {
+            return false;
+        }
+        if (self::count_other_active_enrols($userid, $excludingenrolid) > 0) {
+            return false;
+        }
+        if (self::user_has_cert_usage_traces($userid)) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -342,6 +471,9 @@ class enrolment_manager {
 
     public static function cancel_enrolment(int $enrolid, bool $unenrolmoodle = false): void {
         global $DB;
+        require_once(__DIR__ . '/course_access_helper.php');
+        require_once(__DIR__ . '/session_manager.php');
+
         $enrol = $DB->get_record('local_tm_cert_enrols', ['id' => $enrolid], '*', MUST_EXIST);
         $enrol->status = self::ENROL_CANCELLED;
         $enrol->timemodified = time();
@@ -349,23 +481,33 @@ class enrolment_manager {
 
         if ($unenrolmoodle) {
             $session = session_manager::get_session((int)$enrol->sessionid);
-            $courseid = session_manager::resolve_courseid($session, true);
-            if ($courseid > 0) {
-                self::sync_moodle_enrolment((int)$enrol->userid, $courseid, 'unenrol');
-            }
+            // Unenrol mapped level course only when no other active roster remains
+            // for that course and the user is not an instructor (grandfather otherwise).
+            course_access_helper::maybe_unenrol_level_after_roster_remove(
+                (int)$enrol->userid,
+                (string)$session->certlevel,
+                (int)$enrolid
+            );
         }
     }
 
     /**
-     * Decide whether removing this roster row should also delete the Moodle user.
+     * Decide side-effects when removing a roster row.
      *
-     * Delete only when:
-     * - account looks like an examinee (candidate ID / 6-digit username), AND
-     * - never logged in (firstaccess/lastaccess = 0), AND
-     * - no quiz attempts, AND
+     * Delete Moodle user only when:
+     * - username is a 6-digit candidate ID (plugin-created examinee), AND
+     * - never logged in, AND
+     * - no quiz attempts / practical traces, AND
      * - no other active certification roster rows.
      *
-     * @return array{userid:int,fullname:string,username:string,will_delete_user:bool,reasons:string[]}
+     * Existing accounts (incl. instructors): never deleted. May release candidate ID when
+     * unused (no quiz/practical, no other active roster) and restore backed-up password.
+     *
+     * @return array{
+     *   enrolid:int,sessionid:int,userid:int,fullname:string,username:string,email:string,
+     *   will_delete_user:bool,will_release_candidate_id:bool,will_restore_password:bool,
+     *   reasons:string[]
+     * }
      */
     public static function assess_roster_removal(int $enrolid): array {
         global $DB;
@@ -373,20 +515,21 @@ class enrolment_manager {
 
         $enrol = $DB->get_record('local_tm_cert_enrols', ['id' => $enrolid], '*', MUST_EXIST);
         $user = $DB->get_record('user', ['id' => (int)$enrol->userid, 'deleted' => 0], '*', MUST_EXIST);
+        $userid = (int)$user->id;
+        $username = (string)$user->username;
 
         $reasons = [];
         $willdelete = true;
 
-        if (is_siteadmin($user) || (int)$user->id < 2) {
+        if (is_siteadmin($user) || $userid < 2) {
             $willdelete = false;
             $reasons[] = 'protected_account';
         }
 
-        $candidateid = candidate_manager::get_candidate_id((int)$user->id);
-        $isexaminee = ($candidateid !== null) || candidate_manager::is_candidate_id_format((string)$user->username);
-        if (!$isexaminee) {
+        // Only plugin-created examinee accounts (username = candidate ID) may be deleted.
+        if (!candidate_manager::is_candidate_id_format($username)) {
             $willdelete = false;
-            $reasons[] = 'not_examinee_account';
+            $reasons[] = 'existing_account';
         }
 
         if ((int)$user->lastaccess > 0 || (int)$user->firstaccess > 0) {
@@ -394,67 +537,88 @@ class enrolment_manager {
             $reasons[] = 'has_logged_in';
         }
 
-        if ($DB->get_manager()->table_exists('quiz_attempts')
-            && $DB->record_exists('quiz_attempts', ['userid' => (int)$user->id])) {
+        if (self::user_has_cert_usage_traces($userid)) {
             $willdelete = false;
-            $reasons[] = 'has_quiz_attempts';
+            $reasons[] = 'has_cert_usage';
         }
 
-        $otheractive = $DB->count_records_select(
-            'local_tm_cert_enrols',
-            'userid = :userid AND status <> :cancelled AND id <> :enrolid',
-            [
-                'userid' => (int)$user->id,
-                'cancelled' => self::ENROL_CANCELLED,
-                'enrolid' => $enrolid,
-            ]
-        );
+        $otheractive = self::count_other_active_enrols($userid, $enrolid);
         if ($otheractive > 0) {
             $willdelete = false;
             $reasons[] = 'other_active_roster';
         }
 
+        $willrelease = !$willdelete
+            && self::should_release_candidate_id_on_remove($userid, $enrolid, $username);
+
+        $hasbackup = $DB->get_manager()->table_exists('local_tm_cert_pwbackup')
+            && $DB->record_exists('local_tm_cert_pwbackup', ['userid' => $userid]);
+        $willrestore = !$willdelete && $otheractive === 0 && $hasbackup;
+
         return [
             'enrolid' => $enrolid,
             'sessionid' => (int)$enrol->sessionid,
-            'userid' => (int)$user->id,
+            'userid' => $userid,
             'fullname' => fullname($user),
-            'username' => (string)$user->username,
+            'username' => $username,
             'email' => (string)$user->email,
             'will_delete_user' => $willdelete,
+            'will_release_candidate_id' => $willrelease,
+            'will_restore_password' => $willrestore,
             'reasons' => $reasons,
         ];
     }
 
     /**
-     * Remove from session roster; optionally delete unused mistaken account.
+     * Remove from session roster; optionally delete unused mistaken examinee account.
+     * For kept accounts: restore password when leaving last active roster; release
+     * candidate ID when first unused participation on an existing account.
+     * Moodle course unenrol follows course_access_helper (last roster for level only;
+     * instructors and historical enrols without a remove action are kept).
      *
-     * @return array{removed:bool,deleted_user:bool,assessment:array}
+     * @return array{removed:bool,deleted_user:bool,released_candidate_id:bool,restored_password:bool,assessment:array}
      */
     public static function remove_from_roster(int $enrolid, bool $confirmdeleteuser = false): array {
         global $CFG;
         require_once($CFG->dirroot . '/user/lib.php');
+        require_once(__DIR__ . '/candidate_manager.php');
 
         $assessment = self::assess_roster_removal($enrolid);
-        // Always remove from this session + unenrol mapped Moodle course.
+        // Cancel roster row; maybe unenrol mapped course (see course_access_helper).
         self::cancel_enrolment($enrolid, true);
 
         $deleted = false;
+        $released = false;
+        $restored = false;
+        $userid = (int)$assessment['userid'];
+
         if (!empty($assessment['will_delete_user']) && $confirmdeleteuser) {
-            require_once(__DIR__ . '/candidate_manager.php');
-            $userid = (int)$assessment['userid'];
             $user = \core_user::get_user($userid, '*', MUST_EXIST);
             if (!is_siteadmin($user) && $userid > 1 && empty($user->deleted)) {
-                // Free candidate ID before soft-delete so the number can be reused.
                 candidate_manager::release_for_userid($userid);
+                self::discard_password_backup($userid);
                 \delete_user($user);
                 $deleted = true;
+                $released = true;
+            }
+        } else {
+            if (!empty($assessment['will_restore_password'])) {
+                $restored = self::restore_password_hash($userid);
+            }
+            if (!empty($assessment['will_release_candidate_id'])) {
+                candidate_manager::release_for_userid($userid);
+                $released = true;
             }
         }
+
+        $assessment['released_candidate_id'] = $released;
+        $assessment['restored_password'] = $restored;
 
         return [
             'removed' => true,
             'deleted_user' => $deleted,
+            'released_candidate_id' => $released,
+            'restored_password' => $restored,
             'assessment' => $assessment,
         ];
     }
