@@ -200,12 +200,52 @@ class candidate_manager {
     }
 
     /**
-     * Release candidate ID binding (unused first participation on existing account,
-     * or before deleting a plugin-created examinee account).
+     * Release candidate ID binding so the number can be reissued.
+     * If Moodle username still equals that ID (plugin-created examinee kept after login),
+     * rename username so {@see next_candidate_id()} can reuse the number.
      */
     public static function release_for_userid(int $userid): void {
-        global $DB;
+        global $DB, $CFG;
+
+        $cid = self::get_candidate_id($userid);
+        if ($cid === null) {
+            $userpeek = $DB->get_record('user', ['id' => $userid, 'deleted' => 0], 'id,username');
+            if ($userpeek && self::is_candidate_id_format((string)$userpeek->username)) {
+                $cid = (string)$userpeek->username;
+            }
+        }
+
         $DB->delete_records('local_tm_cert_candidates', ['userid' => $userid]);
+
+        if ($cid === null || $userid < 2) {
+            return;
+        }
+
+        $user = $DB->get_record('user', [
+            'id' => $userid,
+            'deleted' => 0,
+            'mnethostid' => $CFG->mnet_localhost_id,
+        ], 'id,username', IGNORE_MISSING);
+        if (!$user || (string)$user->username !== $cid) {
+            return;
+        }
+
+        // Free the numeric ID for reuse while keeping the Moodle account.
+        $base = 'ex' . $cid . '_u' . $userid;
+        $newusername = $base;
+        $n = 0;
+        while ($DB->record_exists('user', [
+            'username' => $newusername,
+            'mnethostid' => $CFG->mnet_localhost_id,
+        ])) {
+            $n++;
+            $newusername = $base . '_' . $n;
+            if ($n > 20) {
+                $newusername = 'ex' . $cid . '_u' . $userid . '_' . time();
+                break;
+            }
+        }
+        $DB->set_field('user', 'username', $newusername, ['id' => $userid]);
     }
 
     /**

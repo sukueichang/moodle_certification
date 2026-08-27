@@ -262,5 +262,34 @@ function xmldb_local_tm_certification_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026073041, 'local', 'tm_certification');
     }
 
+    if ($oldversion < 2026073051) {
+        $sessiontable = new xmldb_table('local_tm_cert_sessions');
+        $checkintoken = new xmldb_field('checkintoken', XMLDB_TYPE_CHAR, '64', null, null, null, null, 'attendancesessid');
+        if (!$dbman->field_exists($sessiontable, $checkintoken)) {
+            $dbman->add_field($sessiontable, $checkintoken);
+        }
+
+        $rctable = new xmldb_table('local_tm_cert_rollcall');
+        if (!$dbman->table_exists($rctable)) {
+            $rctable->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $rctable->add_field('sessionid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $rctable->add_field('enrolid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $rctable->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $rctable->add_field('status', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, 'present');
+            $rctable->add_field('source', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, 'staff');
+            $rctable->add_field('timemarked', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $rctable->add_field('markedby', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $rctable->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $rctable->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $rctable->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $rctable->add_key('uq_session_enrol', XMLDB_KEY_UNIQUE, ['sessionid', 'enrolid']);
+            $rctable->add_index('idx_session', XMLDB_INDEX_NOTUNIQUE, ['sessionid']);
+            $rctable->add_index('idx_userid', XMLDB_INDEX_NOTUNIQUE, ['userid']);
+            $dbman->create_table($rctable);
+        }
+
+        upgrade_plugin_savepoint(true, 2026073051, 'local', 'tm_certification');
+    }
+
     return true;
 }

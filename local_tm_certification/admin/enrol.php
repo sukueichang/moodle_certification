@@ -98,9 +98,13 @@ if ($batchaction === 'confirm' && confirm_sesskey()) {
             }
         }
         $email = (string)($detail['email'] ?? '');
-        $msg = !empty($detail['created'])
-            ? get_string('enrol_added_created', 'local_tm_certification', $email)
-            : get_string('enrol_added_linked', 'local_tm_certification', $email);
+        if (!empty($detail['created'])) {
+            $msg = get_string('enrol_added_created', 'local_tm_certification', $email);
+        } else if (!empty($detail['initial_password'])) {
+            $msg = get_string('enrol_added_linked', 'local_tm_certification', $email);
+        } else {
+            $msg = get_string('enrol_added_linked_keep_auth', 'local_tm_certification', $email);
+        }
         if (!empty($detail['candidateid'])) {
             $msg .= ' ' . get_string('enrol_candidate_id', 'local_tm_certification', $detail['candidateid']);
         }
@@ -118,9 +122,11 @@ if ($batchaction === 'confirm' && confirm_sesskey()) {
         $msg .= ' ' . get_string('batch_commit_skipped', 'local_tm_certification', $result['skipped']);
     }
     if ((int)$result['ok'] > 0) {
-        $msg .= ' ' . get_string('batch_commit_passwords_note', 'local_tm_certification');
+        $gotpassword = false;
         foreach ($result['details'] as $detail) {
             if (!empty($detail['ok']) && !empty($detail['initial_password'])) {
+                $gotpassword = true;
+                $msg .= ' ' . get_string('batch_commit_passwords_note', 'local_tm_certification');
                 $msg .= ' ' . get_string('enrol_initial_password', 'local_tm_certification', $detail['initial_password']);
                 if ((int)$result['ok'] > 1) {
                     $msg .= ' ' . get_string('batch_commit_password_more', 'local_tm_certification',
@@ -128,6 +134,9 @@ if ($batchaction === 'confirm' && confirm_sesskey()) {
                 }
                 break;
             }
+        }
+        if (!$gotpassword) {
+            $msg .= ' ' . get_string('batch_commit_keep_auth_note', 'local_tm_certification');
         }
     }
     if (!empty($result['details'])) {

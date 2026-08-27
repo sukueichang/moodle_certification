@@ -148,23 +148,23 @@ class enrolment_manager {
     }
 
     /**
-     * Set examinee Moodle password to Tmai + candidate ID (manual add / batch).
-     * Backs up the previous hash once (for existing accounts) so roster removal can restore it.
+     * Set examinee Moodle password to Tmai + candidate ID (manual auth only).
+     * LDAP / SSO / other external auth: skip reset (return '') — they keep company login.
+     * Backs up the previous hash once for manual accounts so roster removal can restore it.
      * Always clears force-password-change so class-day login works with the roster sheet.
      */
     public static function apply_default_password(int $userid, string $candidateid): string {
         global $DB, $CFG;
         require_once($CFG->dirroot . '/lib/moodlelib.php');
 
-        $plain = candidate_manager::default_password_for($candidateid);
         $user = $DB->get_record('user', ['id' => $userid, 'deleted' => 0], '*', MUST_EXIST);
-        if ((string)$user->auth !== 'manual') {
-            debugging(
-                'local_tm_certification: resetting password for non-manual auth user id=' . $userid
-                . ' auth=' . $user->auth,
-                DEBUG_DEVELOPER
-            );
+        $auth = (string)$user->auth;
+        // External auth cannot use a Moodle-only password reset for class-day sheets.
+        if ($auth !== 'manual' && $auth !== 'email') {
+            return '';
         }
+
+        $plain = candidate_manager::default_password_for($candidateid);
         self::backup_password_hash_once($userid);
         \update_internal_user_password($user, $plain);
         self::clear_force_password_change($userid);
@@ -269,6 +269,7 @@ class enrolment_manager {
 
     /**
      * True when user has cert usage that must keep the candidate ID (quiz / practical).
+     * On-site rollcall / QR self check-in do NOT count — removal may still release the ID.
      */
     public static function user_has_cert_usage_traces(int $userid): bool {
         global $DB;
@@ -286,16 +287,16 @@ class enrolment_manager {
     }
 
     /**
-     * Existing account (username ≠ candidate ID): first unused cert participation may release ID on remove.
+     * Release candidate ID when leaving the last active roster with no quiz/practical traces.
+     * QR / staff rollcall does not block release. Applies to existing accounts and to
+     * plugin-created examinee accounts (username = candidate ID) kept after login.
      */
     public static function should_release_candidate_id_on_remove(int $userid, int $excludingenrolid, string $username): bool {
         require_once(__DIR__ . '/candidate_manager.php');
 
-        if (candidate_manager::is_candidate_id_format($username)) {
-            // Username is the ID — only freed when the Moodle account is deleted.
-            return false;
-        }
-        if (candidate_manager::get_candidate_id($userid) === null) {
+        $hasbinding = candidate_manager::get_candidate_id($userid) !== null;
+        $usernameisid = candidate_manager::is_candidate_id_format($username);
+        if (!$hasbinding && !$usernameisid) {
             return false;
         }
         if (self::count_other_active_enrols($userid, $excludingenrolid) > 0) {
@@ -579,13 +580,18 @@ class enrolment_manager {
      * @return array{removed:bool,deleted_user:bool,released_candidate_id:bool,restored_password:bool,assessment:array}
      */
     public static function remove_from_roster(int $enrolid, bool $confirmdeleteuser = false): array {
-        global $CFG;
+        global $CFG, $DB;
         require_once($CFG->dirroot . '/user/lib.php');
         require_once(__DIR__ . '/candidate_manager.php');
 
         $assessment = self::assess_roster_removal($enrolid);
         // Cancel roster row; maybe unenrol mapped course (see course_access_helper).
         self::cancel_enrolment($enrolid, true);
+
+        // Drop on-site rollcall for this roster row (QR/staff marks must not keep the ID).
+        if ($DB->get_manager()->table_exists('local_tm_cert_rollcall')) {
+            $DB->delete_records('local_tm_cert_rollcall', ['enrolid' => $enrolid]);
+        }
 
         $deleted = false;
         $released = false;

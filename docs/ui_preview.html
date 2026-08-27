@@ -177,8 +177,20 @@
       width: 40px;
       text-align: center;
     }
-    table.data tr.row-miss td { background: #fff8f7; }
-    table.data tr.row-ok td { background: #f7fcf8; }
+    table.data tr.row-miss td {
+      background-color: #fff8f7;
+      background-image: linear-gradient(var(--line), var(--line));
+      background-size: 100% 1px;
+      background-position: left bottom;
+      background-repeat: no-repeat;
+    }
+    table.data tr.row-ok td {
+      background-color: #f7fcf8;
+      background-image: linear-gradient(var(--line), var(--line));
+      background-size: 100% 1px;
+      background-position: left bottom;
+      background-repeat: no-repeat;
+    }
     .stack-gap { margin-top: 14px; }
     .proposal-box {
       margin: 0 0 14px;
@@ -259,15 +271,21 @@
 
     table.data {
       width: 100%;
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0;
       font-size: 0.88rem;
     }
     table.data th,
     table.data td {
       text-align: left;
       padding: 11px 16px;
-      border-bottom: 1px solid var(--line);
+      border-bottom: 0;
       vertical-align: middle;
+      background-color: var(--surface);
+      background-image: linear-gradient(var(--line), var(--line));
+      background-size: 100% 1px;
+      background-position: left bottom;
+      background-repeat: no-repeat;
     }
     table.data th {
       font-size: 0.75rem;
@@ -275,8 +293,12 @@
       color: var(--muted);
       letter-spacing: 0.02em;
     }
-    table.data tr:last-child td { border-bottom: 0; }
+    table.data tr:last-child td {
+      background-image: none;
+      border-bottom: 0;
+    }
     table.data .ops { display: flex; flex-wrap: wrap; gap: 6px; }
+    table.data td { display: table-cell; }
 
     .empty {
       padding: 28px 16px;
@@ -477,15 +499,21 @@
 
     table.data {
       width: 100%;
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0;
       font-size: 0.9rem;
     }
     table.data th,
     table.data td {
       text-align: left;
       padding: 12px 16px;
-      border-bottom: 1px solid var(--line);
+      border-bottom: 0;
       vertical-align: middle;
+      background-color: var(--surface);
+      background-image: linear-gradient(var(--line), var(--line));
+      background-size: 100% 1px;
+      background-position: left bottom;
+      background-repeat: no-repeat;
     }
     table.data th {
       font-size: 0.75rem;
@@ -493,13 +521,168 @@
       color: var(--muted);
       letter-spacing: 0.02em;
     }
-    table.data tr:last-child td { border-bottom: 0; }
+    table.data tr:last-child td {
+      background-image: none;
+    }
     table.data .id {
       font-variant-numeric: tabular-nums;
       font-weight: 600;
       color: var(--tm-blue);
     }
     table.data .muted { color: var(--muted); font-size: 0.85rem; }
+
+    /* P9 現場點名（名單內嵌） */
+    .rc-cell {
+      min-width: 220px;
+    }
+    .rc-cell .rc-status {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .rc-cell .rc-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+    .rc-toggle {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #f4f7f8;
+    }
+    .rc-toggle .rc-btn {
+      border: 0;
+      background: transparent;
+      padding: 5px 10px;
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: default;
+      min-height: 28px;
+    }
+    .rc-toggle .rc-btn + .rc-btn {
+      border-left: 1px solid var(--line);
+    }
+    .rc-toggle .rc-btn.on-present {
+      background: #e6f5ea;
+      color: var(--valid);
+    }
+    .rc-toggle .rc-btn.on-late {
+      background: #fff6e8;
+      color: var(--warn-ink);
+    }
+    .rc-toggle .rc-btn.on-absent {
+      background: #fdecea;
+      color: var(--danger);
+    }
+
+    /* P9 場次簽到 QR */
+    .qr-layout {
+      display: grid;
+      grid-template-columns: minmax(200px, 240px) 1fr;
+      gap: 20px;
+      padding: 20px 16px;
+      align-items: start;
+    }
+    @media (max-width: 720px) {
+      .qr-layout { grid-template-columns: 1fr; justify-items: center; }
+    }
+    .qr-frame {
+      width: 220px;
+      height: 220px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background:
+        repeating-linear-gradient(0deg, #15252c 0 8px, transparent 8px 16px),
+        repeating-linear-gradient(90deg, #15252c 0 8px, transparent 8px 16px);
+      background-size: 16px 16px;
+      background-color: #fff;
+      background-blend-mode: darken;
+      position: relative;
+    }
+    .qr-frame::after {
+      content: "QR";
+      position: absolute;
+      inset: 58px;
+      background: #fff;
+      border: 2px solid #15252c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--tm-blue);
+      font-size: 1.1rem;
+      letter-spacing: 0.06em;
+    }
+    .qr-meta h3 {
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+    }
+    .qr-meta p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .qr-meta .qr-url {
+      display: block;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.78rem;
+      word-break: break-all;
+      background: #f4f7f8;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+      color: var(--tm-blue);
+    }
+    .qr-meta .ops { display: flex; flex-wrap: wrap; gap: 6px; }
+    .checkin-card {
+      max-width: 420px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 28px 22px;
+      text-align: center;
+    }
+    .checkin-card h1 {
+      margin: 0 0 8px;
+      font-size: 1.35rem;
+    }
+    .checkin-card .lead {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .checkin-card .who {
+      margin: 14px 0 4px;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .checkin-card .when {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .checkin-card .big-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 16px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+    }
+    .checkin-card .big-pill.ok { background: #e6f5ea; color: var(--valid); }
+    .checkin-card .big-pill.late { background: #fff6e8; color: var(--warn-ink); }
+    .checkin-card .big-pill.bad { background: #fdecea; color: var(--danger); }
+    .checkin-card .big-pill.dim { background: #eef1f3; color: var(--ended); }
 
     .empty {
       padding: 40px 16px;
@@ -1958,9 +2141,15 @@
 
 
     <section class="sec" id="sec-roster" hidden>
-      <div class="sec-title">學員名單 · 通過狀態／單一下載／證書批次下載（P10 提案）</div>
+      <div class="sec-title">學員名單 · P9 現場點名＋場次簽到 QR／P10 通過與證書</div>
       <div class="roles subnav" data-prefix="roster" role="tablist" aria-label="切換頁面預覽">
-      <button type="button" class="active" data-view="roster-list">名單（通過＋單一下載）</button>
+      <button type="button" class="active" data-view="roster-rollcall">名單（現場點名）</button>
+      <button type="button" data-view="roster-qr">講師：本場簽到 QR</button>
+      <button type="button" data-view="roster-checkin-present">學生：簽到＝到課</button>
+      <button type="button" data-view="roster-checkin-late">學生：簽到＝遲到</button>
+      <button type="button" data-view="roster-checkin-closed">學生：場次已結束</button>
+      <button type="button" data-view="roster-checkin-other">學生：其他狀態</button>
+      <button type="button" data-view="roster-list">名單（通過＋單一下載）</button>
       <button type="button" data-view="roster-cert-session">批次：本場通過者</button>
       <button type="button" data-view="roster-cert-search">儀表板：全站批次下載</button>
       <button type="button" data-view="roster-add">新增學員</button>
@@ -1968,11 +2157,283 @@
       <button type="button" data-view="roster-ended">已結束場次</button>
     </div>
 
+    <!-- ========== 名單（P9 現場點名內嵌） ========== -->
+    <section id="view-roster-rollcall" class="view active">
+      <div class="proposal-box">
+        <strong>P9 定案提案：</strong>名單內嵌「現場點名」欄（講師可手動改）。
+        另提供<strong>本場簽到 QR</strong>：學生須先登入 Moodle；開場前掃＝到課、開場後至結束＝遲到、結束後關閉。
+        系統依時間判斷；講師可後台覆寫。與課程出缺席無關。
+      </div>
+      <div class="head">
+        <div>
+          <h1>[初級]檢定課程</h1>
+          <div class="facts">
+            <span class="pill">初級</span>
+            <span class="pill">今日 09:30–12:30</span>
+            <span class="pill">台北 A</span>
+            <span class="pill">4 人</span>
+            <span class="pill ok">進行中</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-primary">新增學員</span>
+          <span class="btn btn-secondary">輸入成績</span>
+          <span class="btn btn-secondary">本場簽到 QR</span>
+          <span class="btn btn-secondary">本場證書下載</span>
+          <span class="btn btn-secondary">返回</span>
+        </div>
+      </div>
+
+      <div class="alert-slim" style="margin-bottom:12px;">
+        現場點名＝到課確認，不會寫入 Moodle 出缺席。學生可掃「本場簽到 QR」自簽；講師仍可在此欄手動變更。
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <h2>學員名單</h2>
+          <div class="ops">
+            <span class="pill ok">到課 1</span>
+            <span class="pill" style="background:#fff6e8;color:#9a5b00;">遲到 1</span>
+            <span class="pill bad">未到 1</span>
+            <span class="pill dim">未點名 1</span>
+            <span class="btn btn-sm btn-secondary">本場簽到 QR</span>
+            <span class="btn btn-sm btn-secondary">全部標到課</span>
+            <span class="btn btn-sm btn-secondary">下載登入名單</span>
+            <span class="btn btn-sm btn-primary">本場證書下載</span>
+          </div>
+        </div>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>考生編號</th>
+              <th>Email</th>
+              <th>現場點名</th>
+              <th>通過</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>王美</td>
+              <td class="id">115045</td>
+              <td class="muted">mei.wang@example.com</td>
+              <td class="rc-cell">
+                <div class="rc-status">
+                  <div class="rc-toggle" role="group" aria-label="王美現場點名">
+                    <span class="rc-btn on-present">到課</span>
+                    <span class="rc-btn">遲到</span>
+                    <span class="rc-btn">未到</span>
+                  </div>
+                  <span class="rc-meta">09:12 · 學生自簽</span>
+                </div>
+              </td>
+              <td><span class="pill ok">通過</span></td>
+              <td><div class="ops">
+                <span class="btn btn-sm btn-primary">下載證書</span>
+                <span class="btn btn-sm btn-danger">移除</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td>李強</td>
+              <td class="id">115046</td>
+              <td class="muted">qiang.li@example.com</td>
+              <td class="rc-cell">
+                <div class="rc-status">
+                  <div class="rc-toggle" role="group" aria-label="李強現場點名">
+                    <span class="rc-btn">到課</span>
+                    <span class="rc-btn on-late">遲到</span>
+                    <span class="rc-btn">未到</span>
+                  </div>
+                  <span class="rc-meta">09:48 · 學生自簽</span>
+                </div>
+              </td>
+              <td><span class="pill bad">未通過</span></td>
+              <td><div class="ops">
+                <span class="btn btn-sm btn-danger">移除</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td>陳雅婷</td>
+              <td class="id">115047</td>
+              <td class="muted">yating.chen@example.com</td>
+              <td class="rc-cell">
+                <div class="rc-status">
+                  <div class="rc-toggle" role="group" aria-label="陳雅婷現場點名">
+                    <span class="rc-btn">到課</span>
+                    <span class="rc-btn">遲到</span>
+                    <span class="rc-btn on-absent">未到</span>
+                  </div>
+                  <span class="rc-meta">12:05 · 王老師</span>
+                </div>
+              </td>
+              <td><span class="pill dim">未判定</span></td>
+              <td><div class="ops">
+                <span class="btn btn-sm btn-danger">移除</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td>林小華</td>
+              <td class="id">114802</td>
+              <td class="muted">hua@example.com</td>
+              <td class="rc-cell">
+                <div class="rc-status">
+                  <div class="rc-toggle" role="group" aria-label="林小華現場點名">
+                    <span class="rc-btn">到課</span>
+                    <span class="rc-btn">遲到</span>
+                    <span class="rc-btn">未到</span>
+                  </div>
+                  <span class="rc-meta">未點名</span>
+                </div>
+              </td>
+              <td><span class="pill ok">通過</span></td>
+              <td><div class="ops">
+                <span class="btn btn-sm btn-primary">下載證書</span>
+                <span class="btn btn-sm btn-danger">移除</span>
+              </div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== 講師：本場簽到 QR ========== -->
+    <section id="view-roster-qr" class="view">
+      <div class="proposal-box">
+        <strong>講師端：</strong>在名單產生／顯示本場專屬簽到 QR（可投影或列印）。
+        無最早開放時間；學生隨時可掃，但狀態依場次時間自動判定。結束後 QR 仍可開但提交會被拒。
+      </div>
+      <div class="head">
+        <div>
+          <h1>本場簽到 QR</h1>
+          <div class="facts">
+            <span class="pill">[初級]檢定課程</span>
+            <span class="pill">今日 09:30–12:30</span>
+            <span class="pill ok">簽到開放中</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-secondary">返回名單</span>
+        </div>
+      </div>
+
+      <div class="alert-slim" style="margin-bottom:12px;">
+        規則：開場前掃＝到課；開場後至結束＝遲到；場次結束後＝關閉自簽。須先登入 Moodle（課前發帳密）。
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <h2>给学生掃描</h2>
+          <div class="ops">
+            <span class="pill">到課門檻 09:30</span>
+            <span class="pill">關閉 12:30</span>
+          </div>
+        </div>
+        <div class="qr-layout">
+          <div class="qr-frame" aria-hidden="true"></div>
+          <div class="qr-meta">
+            <h3>掃碼後請先登入，再確認簽到</h3>
+            <p>此 QR 僅限本場次。建議投影在教室或印成紙本置於入口。</p>
+            <span class="qr-url">https://moodle.example/local/tm_certification/checkin.php?sessionid=42&amp;t=…</span>
+            <div class="ops">
+              <span class="btn btn-primary btn-sm">列印／下載 QR</span>
+              <span class="btn btn-secondary btn-sm">複製連結</span>
+              <span class="btn btn-secondary btn-sm">重新產生</span>
+            </div>
+            <p style="margin-top:14px;margin-bottom:0;font-size:0.82rem;">
+              「重新產生」會作廢舊連結（舊 QR 失效），適合連結外流時使用。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 學生：簽到＝到課 ========== -->
+    <section id="view-roster-checkin-present" class="view">
+      <div class="proposal-box">
+        <strong>學生端（開場前）：</strong>已登入且在名冊 → 一鍵確認 → 系統記<strong>到課</strong>＋當下時間。不需再選名字。
+      </div>
+      <div class="checkin-card">
+        <h1>本場簽到</h1>
+        <p class="lead">[初級]檢定課程 · 今日 09:30–12:30 · 台北 A</p>
+        <div class="big-pill ok">將記為：到課</div>
+        <p class="lead" style="margin-bottom:8px;">現在 09:12（開場前）</p>
+        <div class="who">王美</div>
+        <div class="when">考生編號 115045 · 已登入</div>
+        <span class="btn btn-primary">確認簽到</span>
+      </div>
+      <div class="checkin-card" style="margin-top:14px;">
+        <div class="big-pill ok">簽到完成</div>
+        <div class="who">王美</div>
+        <div class="when">到課 · 09:12</div>
+        <p class="lead">可關閉此頁，專心上課。</p>
+      </div>
+    </section>
+
+    <!-- ========== 學生：簽到＝遲到 ========== -->
+    <section id="view-roster-checkin-late" class="view">
+      <div class="proposal-box">
+        <strong>學生端（開場後～結束前）：</strong>同樣一鍵確認，系統自動記<strong>遲到</strong>。講師之後仍可在名單改成到課／未到。
+      </div>
+      <div class="checkin-card">
+        <h1>本場簽到</h1>
+        <p class="lead">[初級]檢定課程 · 今日 09:30–12:30 · 台北 A</p>
+        <div class="big-pill late">將記為：遲到</div>
+        <p class="lead" style="margin-bottom:8px;">現在 09:48（已過開場）</p>
+        <div class="who">李強</div>
+        <div class="when">考生編號 115046 · 已登入</div>
+        <span class="btn btn-primary">確認簽到</span>
+      </div>
+    </section>
+
+    <!-- ========== 學生：場次已結束 ========== -->
+    <section id="view-roster-checkin-closed" class="view">
+      <div class="proposal-box">
+        <strong>場次結束後：</strong>自簽關閉。請改由講師在名單手動補登。
+      </div>
+      <div class="checkin-card">
+        <h1>本場簽到</h1>
+        <p class="lead">[初級]檢定課程 · 今日 09:30–12:30</p>
+        <div class="big-pill dim">自簽已關閉</div>
+        <p class="lead">場次已結束（12:30）。若需補登，請洽講師於名單手動點名。</p>
+      </div>
+    </section>
+
+    <!-- ========== 學生：其他狀態 ========== -->
+    <section id="view-roster-checkin-other" class="view">
+      <div class="proposal-box">
+        <strong>其他狀態：</strong>未登入須先導向 Moodle 登入；非本場名冊拒絕；已簽過顯示結果不重複洗時間（除非講師後台改過後再開？本階段建議：已簽過僅顯示，不覆寫）。
+      </div>
+
+      <div class="checkin-card" style="margin-bottom:14px;">
+        <h1>本場簽到</h1>
+        <div class="big-pill dim">需要登入</div>
+        <p class="lead">請先以課前取得的帳號密碼登入 Moodle，再回到此頁完成簽到。</p>
+        <span class="btn btn-primary">前往登入</span>
+      </div>
+
+      <div class="checkin-card" style="margin-bottom:14px;">
+        <h1>本場簽到</h1>
+        <div class="big-pill bad">不在本場名冊</div>
+        <div class="who">訪客帳號</div>
+        <p class="lead">目前登入身分不在本場學員名單。請確認帳號，或洽講師加入名冊。</p>
+      </div>
+
+      <div class="checkin-card">
+        <h1>本場簽到</h1>
+        <div class="big-pill ok">已簽到</div>
+        <div class="who">王美</div>
+        <div class="when">到課 · 09:12</div>
+        <p class="lead">無需再次簽到。若狀態有誤，請洽講師於名單修改。</p>
+      </div>
+    </section>
+
     <!-- ========== 名單（通過＋單一下載） ========== -->
-    <section id="view-roster-list" class="view active">
+    <section id="view-roster-list" class="view">
       <div class="proposal-box">
         <strong>P10 名單列：</strong>顯示本場通過狀態；已通過才有「下載證書」。
         場次內僅「本場證書下載」。全站搜尋批次在<strong>檢定儀表板</strong>（管理／審核）獨立按鈕。
+        （現場點名見「名單（現場點名）」分頁。）
       </div>
       <div class="head">
         <div>
@@ -2019,10 +2480,10 @@
               <td class="muted">mei.wang@example.com</td>
               <td>台中高工</td>
               <td><span class="pill ok">通過</span></td>
-              <td class="ops">
+              <td><div class="ops">
                 <span class="btn btn-sm btn-primary">下載證書</span>
                 <span class="btn btn-sm btn-danger">移除</span>
-              </td>
+              </div></td>
             </tr>
             <tr>
               <td>李強</td>
@@ -2030,9 +2491,9 @@
               <td class="muted">qiang.li@example.com</td>
               <td>台北科大</td>
               <td><span class="pill bad">未通過</span></td>
-              <td class="ops">
+              <td><div class="ops">
                 <span class="btn btn-sm btn-danger">移除</span>
-              </td>
+              </div></td>
             </tr>
             <tr>
               <td>陳雅婷</td>
@@ -2040,9 +2501,9 @@
               <td class="muted">yating.chen@example.com</td>
               <td>—</td>
               <td><span class="pill dim">未判定</span></td>
-              <td class="ops">
+              <td><div class="ops">
                 <span class="btn btn-sm btn-danger">移除</span>
-              </td>
+              </div></td>
             </tr>
             <tr>
               <td>林小華</td>
@@ -2050,10 +2511,10 @@
               <td class="muted">hua@example.com</td>
               <td>中科院</td>
               <td><span class="pill ok">通過</span></td>
-              <td class="ops">
+              <td><div class="ops">
                 <span class="btn btn-sm btn-primary">下載證書</span>
                 <span class="btn btn-sm btn-danger">移除</span>
-              </td>
+              </div></td>
             </tr>
           </tbody>
         </table>

@@ -1,6 +1,6 @@
 <?php
 /**
- * Session roster (list only).
+ * Session roster (list + on-site rollcall + cert actions).
  *
  * @package    local_tm_certification
  */
@@ -11,11 +11,13 @@ require_once(__DIR__ . '/../classes/session_manager.php');
 require_once(__DIR__ . '/../classes/enrolment_manager.php');
 require_once(__DIR__ . '/../classes/dashboard_helper.php');
 require_once(__DIR__ . '/../classes/assessment_manager.php');
+require_once(__DIR__ . '/../classes/rollcall_manager.php');
 
 use local_tm_certification\assessment_manager;
 use local_tm_certification\dashboard_helper;
 use local_tm_certification\enrolment_manager;
 use local_tm_certification\permissions_manager;
+use local_tm_certification\rollcall_manager;
 use local_tm_certification\session_manager;
 
 require_login();
@@ -39,10 +41,28 @@ $PAGE->set_heading(format_string($session->name));
 
 $cancelid = optional_param('cancelid', 0, PARAM_INT);
 $confirmremove = optional_param('confirmremove', 0, PARAM_INT);
+$action = optional_param('action', '', PARAM_ALPHANUMEXT);
 $canremove = $canmanage || $caninstruct;
 $rosterurl = new moodle_url('/local/tm_certification/admin/roster.php', ['sessionid' => $sessionid]);
 $enrolurl = new moodle_url('/local/tm_certification/admin/enrol.php', ['sessionid' => $sessionid]);
 $dashurl = new moodle_url('/local/tm_certification/index.php');
+$qrurl = new moodle_url('/local/tm_certification/admin/rollcall_qr.php', ['sessionid' => $sessionid]);
+$certbatchurl = new moodle_url('/local/tm_certification/admin/cert_batch.php', ['sessionid' => $sessionid]);
+
+// Staff rollcall mark / mark-all.
+if ($action !== '' && confirm_sesskey()) {
+    if ($action === 'rollcall') {
+        $enrolid = required_param('enrolid', PARAM_INT);
+        $status = required_param('status', PARAM_ALPHANUMEXT);
+        rollcall_manager::mark($sessionid, $enrolid, $status, (int)$USER->id, rollcall_manager::SOURCE_STAFF);
+        redirect($rosterurl);
+    }
+    if ($action === 'rollcall_all_present') {
+        rollcall_manager::mark_all_present($sessionid, (int)$USER->id);
+        redirect($rosterurl, get_string('rollcall_all_present_done', 'local_tm_certification'),
+            null, \core\output\notification::NOTIFY_SUCCESS);
+    }
+}
 
 // Step 2: confirmed remove.
 if ($cancelid && $confirmremove && confirm_sesskey() && $canremove) {
@@ -114,7 +134,10 @@ if ($cancelid && !$confirmremove && $canremove) {
 }
 
 $roster = enrolment_manager::get_session_roster($sessionid);
+$rollmap = rollcall_manager::get_map_for_session($sessionid);
+$rollcounts = rollcall_manager::count_for_roster($sessionid, $roster);
 $levels = session_manager::level_options();
+$statuslabels = rollcall_manager::status_options();
 $ended = session_manager::is_ended($session);
 $count = count($roster);
 
@@ -124,8 +147,6 @@ if (!empty($session->venuename) || !empty($session->venuecode)) {
 } else if (!empty($session->venue)) {
     $venue = (string)$session->venue;
 }
-
-$certbatchurl = new moodle_url('/local/tm_certification/admin/cert_batch.php', ['sessionid' => $sessionid]);
 
 echo $OUTPUT->header();
 echo html_writer::start_div('tm-cert-dash');
@@ -163,6 +184,8 @@ echo html_writer::link(
     get_string('dash_action_practical', 'local_tm_certification'),
     ['class' => 'btn btn-secondary']
 );
+echo html_writer::link($qrurl, get_string('rollcall_qr_title', 'local_tm_certification'),
+    ['class' => 'btn btn-secondary']);
 echo html_writer::link($certbatchurl, get_string('cert_batch_session_title', 'local_tm_certification'),
     ['class' => 'btn btn-secondary']);
 echo html_writer::link($dashurl, get_string('roster_back', 'local_tm_certification'),
@@ -170,18 +193,38 @@ echo html_writer::link($dashurl, get_string('roster_back', 'local_tm_certificati
 echo html_writer::end_div();
 echo html_writer::end_div();
 
-if ($ended) {
-    echo html_writer::div(
-        get_string('session_ended_no_enrol_hint_short', 'local_tm_certification'),
-        'tm-cert-alert-slim'
-    );
-}
-
 echo html_writer::start_div('tm-cert-panel');
 echo html_writer::start_div('tm-cert-ph');
 echo html_writer::tag('h3', get_string('session_roster', 'local_tm_certification'));
 echo html_writer::start_div('tm-cert-ph-ops');
 if (!empty($roster)) {
+    echo dashboard_helper::render_pill([
+        'label' => get_string('rollcall_count_present', 'local_tm_certification', $rollcounts['present']),
+        'mod' => 'ok',
+    ]);
+    echo dashboard_helper::render_pill([
+        'label' => get_string('rollcall_count_late', 'local_tm_certification', $rollcounts['late']),
+        'mod' => 'late',
+    ]);
+    echo dashboard_helper::render_pill([
+        'label' => get_string('rollcall_count_absent', 'local_tm_certification', $rollcounts['absent']),
+        'mod' => 'bad',
+    ]);
+    echo dashboard_helper::render_pill([
+        'label' => get_string('rollcall_count_unknown', 'local_tm_certification', $rollcounts['unknown']),
+        'mod' => 'dim',
+    ]);
+    echo html_writer::link($qrurl, get_string('rollcall_qr_title', 'local_tm_certification'),
+        ['class' => 'btn btn-sm btn-secondary']);
+    echo html_writer::link(
+        new moodle_url('/local/tm_certification/admin/roster.php', [
+            'sessionid' => $sessionid,
+            'action' => 'rollcall_all_present',
+            'sesskey' => sesskey(),
+        ]),
+        get_string('rollcall_all_present', 'local_tm_certification'),
+        ['class' => 'btn btn-sm btn-secondary']
+    );
     echo html_writer::link(
         new moodle_url('/local/tm_certification/admin/roster_export.php', ['sessionid' => $sessionid]),
         get_string('roster_export_login_csv', 'local_tm_certification'),
@@ -212,7 +255,7 @@ if (empty($roster)) {
         html_writer::tag('th', get_string('fullname'))
         . html_writer::tag('th', get_string('candidate_id', 'local_tm_certification'))
         . html_writer::tag('th', get_string('email'))
-        . html_writer::tag('th', get_string('institution'))
+        . html_writer::tag('th', get_string('rollcall_col', 'local_tm_certification'))
         . html_writer::tag('th', get_string('cert_col_pass', 'local_tm_certification'))
         . html_writer::tag('th', get_string('cert_batch_col_action', 'local_tm_certification'))
     );
@@ -237,12 +280,39 @@ if (empty($roster)) {
             ]);
         }
 
+        $eid = (int)$row->id;
+        $rc = $rollmap[$eid] ?? null;
+        $cur = $rc ? (string)$rc->status : '';
+        $toggle = html_writer::start_div('tm-cert-rc-status');
+        $toggle .= html_writer::start_div('tm-cert-rc-toggle', [
+            'role' => 'group',
+            'aria-label' => get_string('rollcall_col', 'local_tm_certification'),
+        ]);
+        foreach ([
+            rollcall_manager::STATUS_PRESENT => 'on-present',
+            rollcall_manager::STATUS_LATE => 'on-late',
+            rollcall_manager::STATUS_ABSENT => 'on-absent',
+        ] as $st => $onclass) {
+            $markurl = new moodle_url('/local/tm_certification/admin/roster.php', [
+                'sessionid' => $sessionid,
+                'action' => 'rollcall',
+                'enrolid' => $eid,
+                'status' => $st,
+                'sesskey' => sesskey(),
+            ]);
+            $cls = 'tm-cert-rc-btn' . ($cur === $st ? ' ' . $onclass : '');
+            $toggle .= html_writer::link($markurl, $statuslabels[$st], ['class' => $cls]);
+        }
+        $toggle .= html_writer::end_div();
+        $toggle .= html_writer::span(rollcall_manager::format_meta_line($rc), 'tm-cert-rc-meta');
+        $toggle .= html_writer::end_div();
+
         $ops = [];
         if ($ev['overall'] === true) {
             $ops[] = html_writer::link(
                 new moodle_url('/local/tm_certification/admin/cert_download.php', [
                     'sessionid' => $sessionid,
-                    'enrolid' => (int)$row->id,
+                    'enrolid' => $eid,
                     'sesskey' => sesskey(),
                 ]),
                 get_string('cert_download_one', 'local_tm_certification'),
@@ -264,9 +334,9 @@ if (empty($roster)) {
         echo html_writer::tag('td', fullname($row));
         echo html_writer::tag('td', s((string)($row->candidateid ?? '')), ['class' => 'tm-cert-id']);
         echo html_writer::tag('td', s($row->email), ['class' => 'tm-cert-muted']);
-        echo html_writer::tag('td', s((string)$row->institution));
+        echo html_writer::tag('td', $toggle, ['class' => 'tm-cert-rc-cell']);
         echo html_writer::tag('td', $passpill);
-        echo html_writer::tag('td', $ops ? implode(' ', $ops) : '—', ['class' => 'tm-cert-ops']);
+        echo html_writer::tag('td', html_writer::div($ops ? implode(' ', $ops) : '—', 'tm-cert-ops'));
         echo html_writer::end_tag('tr');
     }
     echo html_writer::end_tag('tbody');
