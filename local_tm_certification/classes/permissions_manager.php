@@ -162,6 +162,16 @@ class permissions_manager {
         return self::user_can_manage($user) || self::user_has_identity(self::IDENTITY_INSTRUCT, $user);
     }
 
+    /**
+     * Site-wide batch certificate download (dashboard entry; not session-scoped).
+     * Manage / approve / instruct identities.
+     */
+    public static function user_can_batch_download_certs(?\stdClass $user = null): bool {
+        return self::user_can_manage($user)
+            || self::user_can_approve($user)
+            || self::user_can_instruct($user);
+    }
+
     public static function user_can_examinee(?\stdClass $user = null): bool {
         return self::user_has_identity(self::IDENTITY_EXAMINEE, $user);
     }

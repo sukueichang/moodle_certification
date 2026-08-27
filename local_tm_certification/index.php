@@ -170,6 +170,14 @@ if ($view === 'manage') {
         ['class' => 'btn btn-secondary']
     );
 }
+if (permissions_manager::user_can_batch_download_certs()
+        && ($view === 'manage' || $view === 'instruct')) {
+    echo html_writer::link(
+        new moodle_url('/local/tm_certification/admin/cert_batch_site.php'),
+        get_string('dash_action_cert_batch', 'local_tm_certification'),
+        ['class' => 'btn btn-secondary']
+    );
+}
 echo html_writer::end_div();
 echo html_writer::end_div();
 
@@ -358,67 +366,69 @@ if ($view === 'manage') {
 
 } else {
     $mysessions = enrolment_manager::get_examinee_sessions((int)$USER->id);
+    [$opensessions, $endedsessions] = dashboard_helper::partition_examinee_sessions($mysessions);
+
+    $render_examinee_session_row = static function(\stdClass $s): string {
+        $when = userdate((int)$s->starttime, get_string('strftimedatetimeshort', 'langconfig'));
+        $venue = '';
+        if (!empty($s->venuename) || !empty($s->venuecode)) {
+            $venue = trim((string)($s->venuecode ?? '') . ' ' . (string)($s->venuename ?? ''));
+        } else if (!empty($s->venue)) {
+            $venue = (string)$s->venue;
+        }
+        $instructorlabel = '';
+        if (!empty($s->instructor)) {
+            $instructorlabel = get_string('examinee_session_instructor', 'local_tm_certification',
+                fullname($s->instructor));
+        }
+        $subparts = array_filter([
+            $when,
+            $venue !== '' ? s($venue) : null,
+            $instructorlabel !== '' ? s($instructorlabel) : null,
+        ]);
+        $sub = implode(' · ', $subparts) . ' · ' . dashboard_helper::session_status_pill($s);
+
+        [$opshtml, $hint] = dashboard_helper::examinee_session_actions($s);
+        $ops = html_writer::start_div('tm-cert-ops') . $opshtml . html_writer::end_div();
+
+        $html = html_writer::start_div('tm-cert-row');
+        $html .= html_writer::start_div();
+        $html .= html_writer::div(format_string($s->name), 'tm-cert-row-name');
+        $html .= html_writer::div($sub, 'tm-cert-row-sub');
+        if ($hint !== '') {
+            $html .= html_writer::div(s($hint), 'tm-cert-row-sub tm-cert-muted');
+        }
+        $html .= html_writer::end_div();
+        $html .= $ops;
+        $html .= html_writer::end_div();
+        return $html;
+    };
 
     echo html_writer::start_div('tm-cert-panel');
     echo html_writer::start_div('tm-cert-ph');
-    echo html_writer::tag('h3', get_string('dash_section_my_exams', 'local_tm_certification'));
+    echo html_writer::tag('h3', get_string('dash_section_upcoming_exams', 'local_tm_certification'));
     echo html_writer::end_div();
-    if (empty($mysessions)) {
-        echo html_writer::div(get_string('dash_empty_exams', 'local_tm_certification'), 'tm-cert-empty');
+    if (empty($opensessions)) {
+        echo html_writer::div(get_string('dash_empty_next_exam', 'local_tm_certification'), 'tm-cert-empty');
     } else {
         echo html_writer::start_div('tm-cert-pb');
-        foreach ($mysessions as $s) {
-            $when = userdate((int)$s->starttime, get_string('strftimedatetimeshort', 'langconfig'));
-            $venue = '';
-            if (!empty($s->venuename) || !empty($s->venuecode)) {
-                $venue = trim((string)($s->venuecode ?? '') . ' ' . (string)($s->venuename ?? ''));
-            } else if (!empty($s->venue)) {
-                $venue = (string)$s->venue;
-            }
-            $instructorlabel = '';
-            if (!empty($s->instructor)) {
-                $instructorlabel = get_string('examinee_session_instructor', 'local_tm_certification',
-                    fullname($s->instructor));
-            }
-            $subparts = array_filter([
-                $when,
-                $venue !== '' ? s($venue) : null,
-                $instructorlabel !== '' ? s($instructorlabel) : null,
-            ]);
-            $sub = implode(' · ', $subparts) . ' · ' . dashboard_helper::session_status_pill($s);
+        foreach ($opensessions as $s) {
+            echo $render_examinee_session_row($s);
+        }
+        echo html_writer::end_div();
+    }
+    echo html_writer::end_div();
 
-            $btn = assessment_manager::examinee_written_button($s);
-            $ops = html_writer::start_div('tm-cert-ops');
-            if (!empty($btn['show'])) {
-                if (!empty($btn['enabled']) && !empty($btn['url'])) {
-                    $ops .= html_writer::link(
-                        $btn['url'],
-                        $btn['label'],
-                        ['class' => 'btn btn-sm btn-primary']
-                    );
-                } else {
-                    $ops .= html_writer::span(
-                        $btn['label'],
-                        'btn btn-sm btn-secondary disabled',
-                        [
-                            'aria-disabled' => 'true',
-                            'title' => (string)($btn['hint'] ?? ''),
-                        ]
-                    );
-                }
-            }
-            $ops .= html_writer::end_div();
-
-            echo html_writer::start_div('tm-cert-row');
-            echo html_writer::start_div();
-            echo html_writer::div(format_string($s->name), 'tm-cert-row-name');
-            echo html_writer::div($sub, 'tm-cert-row-sub');
-            if (!empty($btn['show']) && empty($btn['enabled']) && !empty($btn['hint'])) {
-                echo html_writer::div(s($btn['hint']), 'tm-cert-row-sub tm-cert-muted');
-            }
-            echo html_writer::end_div();
-            echo $ops;
-            echo html_writer::end_div();
+    echo html_writer::start_div('tm-cert-panel');
+    echo html_writer::start_div('tm-cert-ph');
+    echo html_writer::tag('h3', get_string('dash_section_past_exams', 'local_tm_certification'));
+    echo html_writer::end_div();
+    if (empty($endedsessions)) {
+        echo html_writer::div(get_string('dash_empty_past_exams', 'local_tm_certification'), 'tm-cert-empty');
+    } else {
+        echo html_writer::start_div('tm-cert-pb');
+        foreach ($endedsessions as $s) {
+            echo $render_examinee_session_row($s);
         }
         echo html_writer::end_div();
     }

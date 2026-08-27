@@ -296,4 +296,68 @@ class candidate_manager {
 
         return $used;
     }
+
+    /**
+     * Search examinees site-wide by email, candidate ID, or name.
+     *
+     * @return \stdClass[] userid, email, firstname, lastname, …, candidateid
+     */
+    public static function search_examinees(string $query, int $limit = 40): array {
+        global $DB, $CFG;
+
+        $query = trim($query);
+        if ($query === '' || $limit <= 0) {
+            return [];
+        }
+
+        $like = $DB->sql_like('u.email', ':qemail', false);
+        $likefn = $DB->sql_like('u.firstname', ':qfn', false);
+        $likeln = $DB->sql_like('u.lastname', ':qln', false);
+        $likeuser = $DB->sql_like('u.username', ':quser', false);
+        $likecid = $DB->sql_like('c.candidateid', ':qcid', false);
+        $fullnameconcat = $DB->sql_concat('u.lastname', "' '", 'u.firstname');
+        $likefull = $DB->sql_like($fullnameconcat, ':qfull', false);
+
+        $pattern = '%' . $DB->sql_like_escape($query) . '%';
+        $params = [
+            'qemail' => $pattern,
+            'qfn' => $pattern,
+            'qln' => $pattern,
+            'quser' => $pattern,
+            'qcid' => $pattern,
+            'qfull' => $pattern,
+            'mnet' => $CFG->mnet_localhost_id,
+        ];
+
+        // Prefer accounts that have a candidate binding or 6-digit username.
+        $sql = "SELECT u.id, u.email, u.username, u.firstname, u.lastname, u.middlename,
+                       u.alternatename, u.firstnamephonetic, u.lastnamephonetic, u.institution,
+                       c.candidateid
+                  FROM {user} u
+             LEFT JOIN {local_tm_cert_candidates} c ON c.userid = u.id
+                 WHERE u.deleted = 0
+                   AND u.suspended = 0
+                   AND u.mnethostid = :mnet
+                   AND u.id > 1
+                   AND ($like OR $likefn OR $likeln OR $likeuser OR $likecid OR $likefull)
+              ORDER BY u.lastname ASC, u.firstname ASC, u.id ASC";
+
+        $rows = $DB->get_records_sql($sql, $params, 0, $limit * 3);
+        $out = [];
+        foreach ($rows as $row) {
+            $cid = null;
+            if (!empty($row->candidateid) && self::is_candidate_id_format((string)$row->candidateid)) {
+                $cid = (string)$row->candidateid;
+            } else if (self::is_candidate_id_format((string)$row->username)) {
+                $cid = (string)$row->username;
+            }
+            // Keep non-candidate hits if email/name matched (staff may still want them).
+            $row->candidateid = $cid;
+            $out[] = $row;
+            if (count($out) >= $limit) {
+                break;
+            }
+        }
+        return $out;
+    }
 }

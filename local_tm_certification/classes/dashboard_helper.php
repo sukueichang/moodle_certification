@@ -268,6 +268,13 @@ class dashboard_helper {
             get_string('dash_action_manage_sessions', 'local_tm_certification'),
             ['class' => 'btn btn-secondary btn-sm']
         );
+        if (permissions_manager::user_can_batch_download_certs()) {
+            $out .= \html_writer::link(
+                new \moodle_url('/local/tm_certification/admin/cert_batch_site.php'),
+                get_string('dash_action_cert_batch', 'local_tm_certification'),
+                ['class' => 'btn btn-secondary btn-sm']
+            );
+        }
         $out .= \html_writer::end_div();
 
         return $out;
@@ -380,13 +387,20 @@ class dashboard_helper {
             get_string('nav_my_certificates', 'local_tm_certification'),
             ['class' => 'btn btn-secondary btn-sm']
         );
+        if (permissions_manager::user_can_batch_download_certs()) {
+            $out .= \html_writer::link(
+                new \moodle_url('/local/tm_certification/admin/cert_batch_site.php'),
+                get_string('dash_action_cert_batch', 'local_tm_certification'),
+                ['class' => 'btn btn-secondary btn-sm']
+            );
+        }
         $out .= \html_writer::end_div();
 
         return $out;
     }
 
     /**
-     * Examinee home: level/id, next exam + written button.
+     * Examinee home: level/id, next open exam, past session + results.
      *
      * @param array $cover
      */
@@ -400,53 +414,31 @@ class dashboard_helper {
             $out .= \html_writer::end_div();
         }
 
-        $mysessions = enrolment_manager::get_examinee_sessions($userid);
-        $next = self::pick_primary_session($mysessions);
+        [$open, $ended] = self::partition_examinee_sessions(
+            enrolment_manager::get_examinee_sessions($userid)
+        );
+        $next = !empty($open) ? $open[0] : null;
+        $past = !empty($ended) ? $ended[0] : null;
 
         $out .= \html_writer::div(get_string('dash_home_section_next_exam', 'local_tm_certification'),
             'tm-cert-home-section-label');
         if (!$next) {
-            $out .= \html_writer::div(get_string('dash_empty_exams', 'local_tm_certification'), 'tm-cert-home-empty');
+            $out .= \html_writer::div(get_string('dash_empty_next_exam', 'local_tm_certification'),
+                'tm-cert-home-empty');
         } else {
-            $when = userdate((int)$next->starttime, get_string('strftimedatetimeshort', 'langconfig'));
-            $venue = self::format_venue($next);
-            $instructorlabel = '';
-            if (!empty($next->instructor)) {
-                $instructorlabel = get_string('examinee_session_instructor', 'local_tm_certification',
-                    fullname($next->instructor));
-            }
-            $subparts = array_filter([
-                $when,
-                $venue !== '' ? s($venue) : null,
-                $instructorlabel !== '' ? s($instructorlabel) : null,
-            ]);
-            $sub = implode(' · ', $subparts) . ' · ' . self::session_status_pill($next);
-
-            $btn = assessment_manager::examinee_written_button($next);
-            $ops = '';
-            $hint = '';
-            if (!empty($btn['show'])) {
-                if (!empty($btn['enabled']) && !empty($btn['url'])) {
-                    $ops .= \html_writer::link(
-                        $btn['url'],
-                        $btn['label'],
-                        ['class' => 'btn btn-sm btn-primary']
-                    );
-                } else {
-                    $ops .= \html_writer::span(
-                        $btn['label'],
-                        'btn btn-sm btn-secondary disabled',
-                        [
-                            'aria-disabled' => 'true',
-                            'title' => (string)($btn['hint'] ?? ''),
-                        ]
-                    );
-                    $hint = (string)($btn['hint'] ?? '');
-                }
-            }
-
             $out .= \html_writer::start_div('tm-cert-home-list');
-            $out .= self::home_list_item(format_string($next->name), $sub, $ops, $hint);
+            $out .= self::render_examinee_home_session_item($next);
+            $out .= \html_writer::end_div();
+        }
+
+        $out .= \html_writer::div(get_string('dash_home_section_past_exams', 'local_tm_certification'),
+            'tm-cert-home-section-label');
+        if (!$past) {
+            $out .= \html_writer::div(get_string('dash_empty_past_exams', 'local_tm_certification'),
+                'tm-cert-home-empty');
+        } else {
+            $out .= \html_writer::start_div('tm-cert-home-list');
+            $out .= self::render_examinee_home_session_item($past);
             $out .= \html_writer::end_div();
         }
 
@@ -464,6 +456,100 @@ class dashboard_helper {
         $out .= \html_writer::end_div();
 
         return $out;
+    }
+
+    /**
+     * Split examinee sessions into open (soonest first) and ended (newest first).
+     *
+     * @param \stdClass[] $sessions
+     * @return array{0:\stdClass[],1:\stdClass[]}
+     */
+    public static function partition_examinee_sessions(array $sessions): array {
+        require_once(__DIR__ . '/session_manager.php');
+        $open = [];
+        $ended = [];
+        foreach ($sessions as $s) {
+            if (session_manager::is_ended($s)) {
+                $ended[] = $s;
+            } else {
+                $open[] = $s;
+            }
+        }
+        usort($open, static function ($a, $b): int {
+            $cmp = ((int)$a->starttime <=> (int)$b->starttime);
+            return $cmp !== 0 ? $cmp : ((int)$a->id <=> (int)$b->id);
+        });
+        usort($ended, static function ($a, $b): int {
+            $cmp = ((int)$b->starttime <=> (int)$a->starttime);
+            return $cmp !== 0 ? $cmp : ((int)$b->id <=> (int)$a->id);
+        });
+        return [$open, $ended];
+    }
+
+    /**
+     * One examinee session row for the home card.
+     */
+    private static function render_examinee_home_session_item(\stdClass $session): string {
+        $when = userdate((int)$session->starttime, get_string('strftimedatetimeshort', 'langconfig'));
+        $venue = self::format_venue($session);
+        $instructorlabel = '';
+        if (!empty($session->instructor)) {
+            $instructorlabel = get_string('examinee_session_instructor', 'local_tm_certification',
+                fullname($session->instructor));
+        }
+        $subparts = array_filter([
+            $when,
+            $venue !== '' ? s($venue) : null,
+            $instructorlabel !== '' ? s($instructorlabel) : null,
+        ]);
+        $sub = implode(' · ', $subparts) . ' · ' . self::session_status_pill($session);
+        [$ops, $hint] = self::examinee_session_actions($session);
+        return self::home_list_item(format_string($session->name), $sub, $ops, $hint);
+    }
+
+    /**
+     * Action buttons for an examinee session row (home or full dashboard).
+     *
+     * @return array{0:string,1:string} [opshtml, hint]
+     */
+    public static function examinee_session_actions(\stdClass $session): array {
+        require_once(__DIR__ . '/session_manager.php');
+        require_once(__DIR__ . '/assessment_manager.php');
+
+        if (session_manager::is_ended($session)) {
+            $ops = \html_writer::link(
+                new \moodle_url('/local/tm_certification/my_result.php', [
+                    'sessionid' => (int)$session->id,
+                ]),
+                get_string('examinee_view_result', 'local_tm_certification'),
+                ['class' => 'btn btn-sm btn-secondary']
+            );
+            return [$ops, ''];
+        }
+
+        $btn = assessment_manager::examinee_written_button($session);
+        $ops = '';
+        $hint = '';
+        if (!empty($btn['show'])) {
+            if (!empty($btn['enabled']) && !empty($btn['url'])) {
+                $ops .= \html_writer::link(
+                    $btn['url'],
+                    $btn['label'],
+                    ['class' => 'btn btn-sm btn-primary']
+                );
+            } else {
+                $ops .= \html_writer::span(
+                    $btn['label'],
+                    'btn btn-sm btn-secondary disabled',
+                    [
+                        'aria-disabled' => 'true',
+                        'title' => (string)($btn['hint'] ?? ''),
+                    ]
+                );
+                $hint = (string)($btn['hint'] ?? '');
+            }
+        }
+        return [$ops, $hint];
     }
 
     /**

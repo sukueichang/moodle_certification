@@ -10,7 +10,9 @@ require_once(__DIR__ . '/../classes/permissions_manager.php');
 require_once(__DIR__ . '/../classes/session_manager.php');
 require_once(__DIR__ . '/../classes/enrolment_manager.php');
 require_once(__DIR__ . '/../classes/dashboard_helper.php');
+require_once(__DIR__ . '/../classes/assessment_manager.php');
 
+use local_tm_certification\assessment_manager;
 use local_tm_certification\dashboard_helper;
 use local_tm_certification\enrolment_manager;
 use local_tm_certification\permissions_manager;
@@ -123,6 +125,8 @@ if (!empty($session->venuename) || !empty($session->venuecode)) {
     $venue = (string)$session->venue;
 }
 
+$certbatchurl = new moodle_url('/local/tm_certification/admin/cert_batch.php', ['sessionid' => $sessionid]);
+
 echo $OUTPUT->header();
 echo html_writer::start_div('tm-cert-dash');
 
@@ -159,6 +163,8 @@ echo html_writer::link(
     get_string('dash_action_practical', 'local_tm_certification'),
     ['class' => 'btn btn-secondary']
 );
+echo html_writer::link($certbatchurl, get_string('cert_batch_session_title', 'local_tm_certification'),
+    ['class' => 'btn btn-secondary']);
 echo html_writer::link($dashurl, get_string('roster_back', 'local_tm_certification'),
     ['class' => 'btn btn-secondary']);
 echo html_writer::end_div();
@@ -174,13 +180,17 @@ if ($ended) {
 echo html_writer::start_div('tm-cert-panel');
 echo html_writer::start_div('tm-cert-ph');
 echo html_writer::tag('h3', get_string('session_roster', 'local_tm_certification'));
+echo html_writer::start_div('tm-cert-ph-ops');
 if (!empty($roster)) {
     echo html_writer::link(
         new moodle_url('/local/tm_certification/admin/roster_export.php', ['sessionid' => $sessionid]),
         get_string('roster_export_login_csv', 'local_tm_certification'),
         ['class' => 'btn btn-sm btn-secondary']
     );
+    echo html_writer::link($certbatchurl, get_string('cert_batch_session_title', 'local_tm_certification'),
+        ['class' => 'btn btn-sm btn-primary']);
 }
+echo html_writer::end_div();
 echo html_writer::end_div();
 
 if (empty($roster)) {
@@ -203,33 +213,60 @@ if (empty($roster)) {
         . html_writer::tag('th', get_string('candidate_id', 'local_tm_certification'))
         . html_writer::tag('th', get_string('email'))
         . html_writer::tag('th', get_string('institution'))
-        . ($canremove && !$ended ? html_writer::tag('th', '') : '')
+        . html_writer::tag('th', get_string('cert_col_pass', 'local_tm_certification'))
+        . html_writer::tag('th', get_string('cert_batch_col_action', 'local_tm_certification'))
     );
     echo html_writer::end_tag('thead');
     echo html_writer::start_tag('tbody');
     foreach ($roster as $row) {
-        $actions = '';
+        $ev = assessment_manager::evaluate_overall((int)$row->id);
+        if ($ev['overall'] === true) {
+            $passpill = dashboard_helper::render_pill([
+                'label' => get_string('cert_pass_ok', 'local_tm_certification'),
+                'mod' => 'ok',
+            ]);
+        } else if ($ev['overall'] === false) {
+            $passpill = dashboard_helper::render_pill([
+                'label' => get_string('cert_pass_fail', 'local_tm_certification'),
+                'mod' => 'bad',
+            ]);
+        } else {
+            $passpill = dashboard_helper::render_pill([
+                'label' => get_string('cert_pass_pending', 'local_tm_certification'),
+                'mod' => 'dim',
+            ]);
+        }
+
+        $ops = [];
+        if ($ev['overall'] === true) {
+            $ops[] = html_writer::link(
+                new moodle_url('/local/tm_certification/admin/cert_download.php', [
+                    'sessionid' => $sessionid,
+                    'enrolid' => (int)$row->id,
+                    'sesskey' => sesskey(),
+                ]),
+                get_string('cert_download_one', 'local_tm_certification'),
+                ['class' => 'btn btn-sm btn-primary']
+            );
+        }
         if ($canremove && !$ended) {
-            $actions = html_writer::tag('td', html_writer::link(
+            $ops[] = html_writer::link(
                 new moodle_url('/local/tm_certification/admin/roster.php', [
                     'sessionid' => $sessionid,
                     'cancelid' => $row->id,
                 ]),
                 get_string('enrol_cancel', 'local_tm_certification'),
                 ['class' => 'btn btn-sm tm-cert-btn-danger']
-            ));
-        } else if ($canremove && $ended) {
-            // Ended: still allow remove? Preview hid remove on ended. Keep remove for manage flexibility? Preview ended table had no remove. Hide remove when ended.
-            $actions = '';
+            );
         }
+
         echo html_writer::start_tag('tr');
         echo html_writer::tag('td', fullname($row));
         echo html_writer::tag('td', s((string)($row->candidateid ?? '')), ['class' => 'tm-cert-id']);
         echo html_writer::tag('td', s($row->email), ['class' => 'tm-cert-muted']);
         echo html_writer::tag('td', s((string)$row->institution));
-        if ($canremove && !$ended) {
-            echo $actions;
-        }
+        echo html_writer::tag('td', $passpill);
+        echo html_writer::tag('td', $ops ? implode(' ', $ops) : '—', ['class' => 'tm-cert-ops']);
         echo html_writer::end_tag('tr');
     }
     echo html_writer::end_tag('tbody');

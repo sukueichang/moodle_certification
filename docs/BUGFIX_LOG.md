@@ -17,6 +17,23 @@
 - [ ] 升級期間禁止呼叫會 `rebuild_course_cache` 的 `update_course`（見 BUG-20260817-01）
 - [ ] Windows 打包 zip：用 `tar.exe`，內部路徑必須是 `/` 而非 `\`（見 [`DEV_WORKFLOW.md` §4](DEV_WORKFLOW.md#4-打包外掛-zipwindows上傳-moodle)）
 - [ ] 升級頁 `cURL`／遠端 plugin API 錯誤 ≠ DB 升級失敗，可繼續本地升級
+- [ ] SQL `sql_like`／`sql_concat`：變數名稱與傳入欄位一致（見 BUG-20260827-01）
+
+---
+
+## 2026-08-27
+
+### [BUG-20260827-01] 全站證書搜尋噴 LOWER() / Undefined variable nameconcat
+- **現象**  
+  證書批次下載搜尋考生編號時：`Incorrect parameter count in the call to native function 'LOWER'`，且 notice `Undefined variable: nameconcat`。
+- **根因**  
+  `candidate_manager::search_examinees` 將姓名串接存成 `$fullnameconcat`，但 `sql_like` 誤用未定義的 `$nameconcat`，產生空的 `LOWER()`。
+- **修復**  
+  改為使用 `$fullnameconcat`（0.10.3／2026073049）。
+- **影響檔案**  
+  `classes/candidate_manager.php`、`version.php`
+- **結果**  
+  搜尋應可正常回傳列。
 
 ---
 

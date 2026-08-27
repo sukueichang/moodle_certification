@@ -79,11 +79,14 @@ class assessment_manager {
     /**
      * Examinee dashboard button state for starting the written exam.
      *
-     * Enabled only when now >= session starttime. Endtime does not disable the button.
+     * Window aligns with the session: enabled only when starttime <= now < endtime
+     * (and status is not already ended). Past endtime → button hidden (show=false).
      *
      * @return array{show:bool,enabled:bool,url:?\moodle_url,label:string,hint:string}
      */
     public static function examinee_written_button(\stdClass $session, ?int $now = null): array {
+        require_once(__DIR__ . '/session_manager.php');
+        $usingrealtime = ($now === null);
         $now = $now ?? time();
         $label = get_string('examinee_start_written', 'local_tm_certification');
         $url = self::written_quiz_url((string)$session->certlevel);
@@ -96,6 +99,23 @@ class assessment_manager {
                 'hint' => '',
             ];
         }
+
+        if ($usingrealtime) {
+            $session = session_manager::sync_auto_end($session);
+        }
+        $ended = ((int)$session->status === session_manager::STATUS_ENDED)
+            || ((int)$session->endtime > 0 && (int)$session->endtime <= $now);
+        if ($ended) {
+            // Session over: hide the written-exam CTA entirely (results use a separate button).
+            return [
+                'show' => false,
+                'enabled' => false,
+                'url' => null,
+                'label' => $label,
+                'hint' => '',
+            ];
+        }
+
         $started = $now >= (int)$session->starttime;
         return [
             'show' => true,
