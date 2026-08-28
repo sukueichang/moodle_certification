@@ -428,6 +428,10 @@ $string['error_batch_csv_has_errors'] = 'CSV 有错误：{$a}';
 $string['error_batch_preview_expired'] = '预览已过期，请重新上传 CSV。';
 $string['error_candidate_allocate_failed'] = '无法核发考生编号，请重试。';
 $string['error_candidate_id_in_use'] = '考生编号 {$a} 已被其他有效账号使用，无法绑定。请联络管理员确认编号资料。';
+$string['error_candidate_id_invalid'] = '考生编号须为 6 位数字。';
+$string['error_candidate_id_cannot_clear'] = '此处不可清空考生编号。若需释出编号，请自场次名单移除（依释出规则）。';
+$string['candidate_id_checking'] = '考生编号检查失败，请重试。';
+$string['profile_category_candidate'] = 'TM 检定';
 $string['batch_commit_first_error'] = '（{$a->email}：{$a->error}）';
 $string['error_candidate_year_full'] = '民国 {$a} 年考生编号流水号已满（999）。';
 

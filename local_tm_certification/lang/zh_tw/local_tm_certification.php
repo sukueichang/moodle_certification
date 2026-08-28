@@ -428,6 +428,10 @@ $string['error_batch_csv_has_errors'] = 'CSV 有錯誤：{$a}';
 $string['error_batch_preview_expired'] = '預覽已過期，請重新上傳 CSV。';
 $string['error_candidate_allocate_failed'] = '無法核發考生編號，請重試。';
 $string['error_candidate_id_in_use'] = '考生編號 {$a} 已被其他有效帳號使用，無法綁定。請聯絡管理員確認編號資料。';
+$string['error_candidate_id_invalid'] = '考生編號須為 6 位數字。';
+$string['error_candidate_id_cannot_clear'] = '此處不可清空考生編號。若需釋出編號，請自場次名單移除（依釋出規則）。';
+$string['candidate_id_checking'] = '考生編號檢查失敗，請重試。';
+$string['profile_category_candidate'] = 'TM 檢定';
 $string['batch_commit_first_error'] = '（{$a->email}：{$a->error}）';
 $string['error_candidate_year_full'] = '民國 {$a} 年考生編號流水號已滿（999）。';
 

@@ -429,6 +429,10 @@ $string['error_batch_csv_has_errors'] = 'CSV has errors: {$a}';
 $string['error_batch_preview_expired'] = 'Preview expired. Please upload the CSV again.';
 $string['error_candidate_allocate_failed'] = 'Could not allocate a candidate ID. Please retry.';
 $string['error_candidate_id_in_use'] = 'Candidate ID {$a} is already bound to another active account. Ask an administrator to check candidate bindings.';
+$string['error_candidate_id_invalid'] = 'Candidate ID must be exactly 6 digits.';
+$string['error_candidate_id_cannot_clear'] = 'Candidate ID cannot be cleared here. Remove the examinee from sessions (release flow) if the number must be freed.';
+$string['candidate_id_checking'] = 'Could not verify the candidate ID. Please try again.';
+$string['profile_category_candidate'] = 'TM certification';
 $string['batch_commit_first_error'] = '({$a->email}: {$a->error})';
 $string['error_candidate_year_full'] = 'Candidate ID serial for ROC year {$a} is exhausted.';
 

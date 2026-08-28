@@ -299,3 +299,13 @@ function local_tm_certification_extend_navigation(global_navigation $nav): void 
 function local_tm_certification_extend_settings_navigation(settings_navigation $settings, context $context): void {
     return;
 }
+
+/**
+ * Inject 考生編號 into user/editadvanced.php (next to 機構), admin-only.
+ *
+ * @return string
+ */
+function local_tm_certification_before_footer(): string {
+    require_once(__DIR__ . '/classes/user_edit_candidate_field.php');
+    return \local_tm_certification\user_edit_candidate_field::render_inject_markup();
+}

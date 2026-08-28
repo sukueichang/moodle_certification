@@ -12,11 +12,19 @@ Moodle local plugin for Techman certification exam operations.
 ## Install
 
 1. Copy `local_tm_certification/` to `{moodle}/local/tm_certification/`
-2. Site administration → Notifications (upgrade)
+2. Site administration → Notifications (upgrade) — need **0.11.6+**
 3. Site administration → Plugins → Local plugins → **TM 檢定管理**
    - Map Moodle roles to logical identities
    - Toggle dashboard visibility
 4. Open `/local/tm_certification/index.php`
+
+### 考生編號 on user edit (admin)
+
+After upgrading `local_tm_certification` to **0.11.6+**, open  
+`/user/editadvanced.php?id=…` — under **選擇的**, between **機構** and **科系**, you should see **考生編號**.  
+It reads/writes `local_tm_cert_candidates` only (does not change username/password).
+
+Optional (not required): `user/profile/field/tmcandidate/` is an alternate native profile-field implementation; the local plugin injects the field by itself.
 
 ## Capabilities
 

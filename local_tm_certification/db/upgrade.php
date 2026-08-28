@@ -291,5 +291,27 @@ function xmldb_local_tm_certification_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026073051, 'local', 'tm_certification');
     }
 
+    if ($oldversion < 2026082800) {
+        // Ensure admin user-edit field for candidate ID (requires profilefield_tmcandidate).
+        require_once(__DIR__ . '/../classes/profile_candidate_field.php');
+        \local_tm_certification\profile_candidate_field::ensure_installed();
+        upgrade_plugin_savepoint(true, 2026082800, 'local', 'tm_certification');
+    }
+
+    if ($oldversion < 2026082801) {
+        // JS inject path on editadvanced + user_updated observer (no profilefield required).
+        upgrade_plugin_savepoint(true, 2026082801, 'local', 'tm_certification');
+    }
+
+    if ($oldversion < 2026082802) {
+        // Fix namespaced html_writer on editadvanced inject.
+        upgrade_plugin_savepoint(true, 2026082802, 'local', 'tm_certification');
+    }
+
+    if ($oldversion < 2026082803) {
+        // Pre-submit duplicate candidate ID check on user edit.
+        upgrade_plugin_savepoint(true, 2026082803, 'local', 'tm_certification');
+    }
+
     return true;
 }

@@ -74,6 +74,97 @@ class candidate_manager {
     }
 
     /**
+     * Admin override of lifelong candidate ID (username / password unchanged).
+     *
+     * Empty input is allowed only when the user has no binding yet (no-op).
+     * Clearing an existing ID is rejected.
+     *
+     * @throws \moodle_exception
+     */
+    public static function change_candidate_id(int $userid, string $candidateid, int $changedby = 0): void {
+        global $DB, $USER;
+
+        if ($userid < 2) {
+            throw new \moodle_exception('error_candidate_allocate_failed', 'local_tm_certification');
+        }
+
+        $candidateid = trim($candidateid);
+        $existing = $DB->get_record('local_tm_cert_candidates', ['userid' => $userid]);
+        $current = $existing ? trim((string)$existing->candidateid) : '';
+
+        if ($candidateid === '') {
+            if ($current === '') {
+                return;
+            }
+            throw new \moodle_exception('error_candidate_id_cannot_clear', 'local_tm_certification');
+        }
+
+        if (!self::is_candidate_id_format($candidateid)) {
+            throw new \moodle_exception('error_candidate_id_invalid', 'local_tm_certification');
+        }
+
+        if ($current === $candidateid) {
+            return;
+        }
+
+        $taken = $DB->get_record('local_tm_cert_candidates', ['candidateid' => $candidateid]);
+        if ($taken && (int)$taken->userid !== $userid) {
+            if (self::is_binding_reclaimable((int)$taken->userid)) {
+                $DB->delete_records('local_tm_cert_candidates', ['id' => (int)$taken->id]);
+            } else {
+                throw new \moodle_exception(
+                    'error_candidate_id_in_use',
+                    'local_tm_certification',
+                    '',
+                    $candidateid
+                );
+            }
+        }
+
+        $changedby = $changedby > 0 ? $changedby : (int)$USER->id;
+        if ($existing) {
+            $existing->candidateid = $candidateid;
+            $DB->update_record('local_tm_cert_candidates', $existing);
+            return;
+        }
+
+        self::bind_candidate_id($userid, $candidateid, $changedby);
+    }
+
+    /**
+     * Form-friendly validation for {@see change_candidate_id()} (null = ok).
+     */
+    public static function validate_candidate_id_change(int $userid, string $candidateid): ?string {
+        try {
+            // Dry-run style checks without writing — mirror change_candidate_id rules.
+            $candidateid = trim($candidateid);
+            global $DB;
+            $existing = $DB->get_record('local_tm_cert_candidates', ['userid' => $userid]);
+            $current = $existing ? trim((string)$existing->candidateid) : '';
+
+            if ($candidateid === '') {
+                if ($current === '') {
+                    return null;
+                }
+                return get_string('error_candidate_id_cannot_clear', 'local_tm_certification');
+            }
+            if (!self::is_candidate_id_format($candidateid)) {
+                return get_string('error_candidate_id_invalid', 'local_tm_certification');
+            }
+            if ($current === $candidateid) {
+                return null;
+            }
+            $taken = $DB->get_record('local_tm_cert_candidates', ['candidateid' => $candidateid]);
+            if ($taken && (int)$taken->userid !== $userid && !self::is_binding_reclaimable((int)$taken->userid)) {
+                return get_string('error_candidate_id_in_use', 'local_tm_certification', $candidateid);
+            }
+            return null;
+        } catch (\Throwable $e) {
+            return get_string('error_candidate_allocate_failed', 'local_tm_certification');
+        }
+    }
+
+    /**
      * Bind an already-chosen candidate ID to a user (idempotent).
      *
      * If the ID is held by a missing/deleted Moodle user, reclaim it.
