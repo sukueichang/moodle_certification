@@ -425,6 +425,24 @@ class candidate_manager {
             }
         }
 
+        // Pre-plugin legacy: lastname held the candidate ID (fullname in firstname).
+        $lastnames = $DB->get_fieldset_sql(
+            "SELECT lastname
+               FROM {user}
+              WHERE deleted = 0
+                AND mnethostid = :mnet
+                AND lastname LIKE :prefix",
+            [
+                'mnet' => $CFG->mnet_localhost_id,
+                'prefix' => $prefix . '%',
+            ]
+        );
+        foreach ($lastnames as $lastname) {
+            if (self::is_candidate_id_format((string)$lastname)) {
+                $used[(int)$lastname] = true;
+            }
+        }
+
         return $used;
     }
 

@@ -308,6 +308,14 @@ if ($hassiteconfig) {
             'local/tm_certification:manage'
         ));
     }
+    if (!$ADMIN->locate('local_tm_certification_legacy_migrate_ext')) {
+        $ADMIN->add('local_tm_certification_cat', new admin_externalpage(
+            'local_tm_certification_legacy_migrate_ext',
+            get_string('nav_legacy_migrate', 'local_tm_certification'),
+            new moodle_url('/local/tm_certification/admin/legacy_name_migrate.php'),
+            'local/tm_certification:manage'
+        ));
+    }
 
     $notify = new admin_settingpage('local_tm_certification_notify', get_string('setting_notify_heading', 'local_tm_certification'));
     if ($ADMIN->fulltree) {

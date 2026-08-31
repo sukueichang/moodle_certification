@@ -294,6 +294,13 @@ function local_tm_certification_add_nav_children(navigation_node $node, string $
             null,
             $keyprefix . '_instr'
         );
+        $node->add(
+            get_string('nav_legacy_migrate', 'local_tm_certification'),
+            new moodle_url('/local/tm_certification/admin/legacy_name_migrate.php'),
+            $nodetype,
+            null,
+            $keyprefix . '_legacy_mig'
+        );
     }
 
     // Admin settingpages require site config — only show shortcuts to those who can open them.
