@@ -267,6 +267,7 @@ Admin 可設定：
 | 未達標 | **〔缺〕** | 輸入的成績（分數一樣謄錄） |
 
 * upsert `attendance_log`；更新 `lasttaken` 等，使出缺席頁正確顯示。  
+* 寫入後呼叫 `attendance_update_users_grade`，使課程成績簿與點名頁手動儲存行為一致。  
 * 〔參〕／〔缺〕依狀態集 acronym／名稱解析，可於設定覆寫 `statusid`。
 
 ### 4.5 雙軌開課

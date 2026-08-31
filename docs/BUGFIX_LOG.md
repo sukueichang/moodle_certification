@@ -21,6 +21,24 @@
 
 ---
 
+## 2026-08-31
+
+### [BUG-20260831-01] 外掛寫〔參〕後成績簿空白，需手動重勾才有分數
+- **現象**  
+  外掛術科達標後出缺席畫面已勾〔參〕、備註有分數，但課程成績簿該出缺席項目仍空白；在 Moodle 出缺席頁再勾一次〔參〕並儲存後成績才出現。
+- **根因**  
+  `upsert_practical_mark` 只寫 `attendance_log`／`lasttaken`，未呼叫 `mod_attendance` 的 `attendance_update_users_grade()`（點名頁儲存才會觸發）。
+- **修復**  
+  寫入 log 後 best-effort 呼叫 `attendance_update_users_grade`（0.11.10／2026083101）。
+- **影響檔案**  
+  `classes/attendance_helper.php`、`version.php`
+- **結果**  
+  之後由外掛存術科即可同步成績簿；歷史已寫〔參〕但未進成績簿者，需重存術科或進出缺席頁再存一次補齊。
+- **預防**  
+  代理寫入 `mod_attendance` 時，行為需對齊該模組正式儲存路徑（含成績重算），不可只改資料表欄位。
+
+---
+
 ## 2026-08-27
 
 ### [BUG-20260827-01] 全站證書搜尋噴 LOWER() / Undefined variable nameconcat

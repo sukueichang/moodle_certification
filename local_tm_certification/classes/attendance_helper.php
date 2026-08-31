@@ -167,6 +167,7 @@ class attendance_helper {
     /**
      * Write/update attendance_log for one student on the session's attendance slot.
      * Does not create activities. Skips quietly if unmapped.
+     * After writing the log, syncs mod_attendance gradebook for that user (best-effort).
      *
      * @param bool $present true = 〔參〕/Present, false = 〔缺〕/Absent
      * @return array{ok:bool,warning:?string}
@@ -229,8 +230,49 @@ class attendance_helper {
         $DB->set_field('attendance_sessions', 'lasttakenby', $takenby, ['id' => $attsessid]);
         $DB->set_field('attendance_sessions', 'timemodified', $now, ['id' => $attsessid]);
 
+        // Same as Moodle take-attendance save: push status points into the gradebook.
+        // Without this, 〔參〕／〔缺〕 shows on the activity but gradebook stays empty.
+        self::sync_attendance_gradebook($attendanceid, $userid);
+
         $out['ok'] = true;
         return $out;
+    }
+
+    /**
+     * Recalculate mod_attendance gradebook row for one user (best-effort).
+     * Mirrors the post-save step in mod_attendance when staff take attendance in the UI.
+     */
+    public static function sync_attendance_gradebook(int $attendanceid, int $userid): void {
+        global $CFG, $DB;
+
+        if ($attendanceid <= 0 || $userid <= 0) {
+            return;
+        }
+
+        $attendance = $DB->get_record('attendance', ['id' => $attendanceid]);
+        if (!$attendance || empty($attendance->grade)) {
+            return;
+        }
+
+        $locallib = $CFG->dirroot . '/mod/attendance/locallib.php';
+        if (!is_readable($locallib)) {
+            debugging('local_tm_certification: mod/attendance/locallib.php missing; gradebook not synced',
+                DEBUG_DEVELOPER);
+            return;
+        }
+        require_once($locallib);
+
+        if (!function_exists('attendance_update_users_grade')) {
+            debugging('local_tm_certification: attendance_update_users_grade() missing; gradebook not synced',
+                DEBUG_DEVELOPER);
+            return;
+        }
+
+        try {
+            attendance_update_users_grade($attendance, [$userid]);
+        } catch (\Throwable $e) {
+            debugging('local_tm_certification attendance grade sync: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
     }
 
     /**
