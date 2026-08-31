@@ -237,7 +237,95 @@ function local_tm_certification_before_standard_top_of_body_html(): string {
 }
 
 /**
- * Navigation entry for authorised users.
+ * Shared child links for flat nav / settings nav (ops + admin setting shortcuts).
+ *
+ * @param navigation_node $node Parent node
+ * @param string $keyprefix Unique key prefix (avoid collisions when both trees render)
+ * @param int $nodetype navigation_node::TYPE_CUSTOM or TYPE_SETTING
+ */
+function local_tm_certification_add_nav_children(navigation_node $node, string $keyprefix, int $nodetype): void {
+    $node->add(
+        get_string('nav_dashboard', 'local_tm_certification'),
+        new moodle_url('/local/tm_certification/index.php'),
+        $nodetype,
+        null,
+        $keyprefix . '_dash'
+    );
+    $node->add(
+        get_string('nav_my_certificates', 'local_tm_certification'),
+        new moodle_url('/local/tm_certification/my_certificates.php'),
+        $nodetype,
+        null,
+        $keyprefix . '_certs'
+    );
+
+    $canmanage = \local_tm_certification\permissions_manager::user_can_manage();
+    $canapprove = \local_tm_certification\permissions_manager::user_can_approve();
+
+    if ($canmanage || $canapprove) {
+        $node->add(
+            get_string('nav_sessions', 'local_tm_certification'),
+            new moodle_url('/local/tm_certification/admin/sessions.php'),
+            $nodetype,
+            null,
+            $keyprefix . '_sessions'
+        );
+        $node->add(
+            get_string('nav_applications', 'local_tm_certification'),
+            new moodle_url('/local/tm_certification/admin/review.php'),
+            $nodetype,
+            null,
+            $keyprefix . '_apps'
+        );
+    }
+
+    if ($canmanage) {
+        $node->add(
+            get_string('nav_venues', 'local_tm_certification'),
+            new moodle_url('/local/tm_certification/admin/venues.php'),
+            $nodetype,
+            null,
+            $keyprefix . '_venues'
+        );
+        $node->add(
+            get_string('nav_instructor_levels', 'local_tm_certification'),
+            new moodle_url('/local/tm_certification/admin/instructors.php'),
+            $nodetype,
+            null,
+            $keyprefix . '_instr'
+        );
+    }
+
+    // Admin settingpages require site config — only show shortcuts to those who can open them.
+    $sysctx = context_system::instance();
+    if (!has_capability('moodle/site:config', $sysctx)) {
+        return;
+    }
+
+    $settingslinks = [
+        'dashboard' => ['local_tm_certification_dashboard', 'setting_dashboard_heading'],
+        'coursemap' => ['local_tm_certification_coursemap', 'setting_coursemap_heading'],
+        'attmap' => ['local_tm_certification_attmap', 'setting_attendance_map_heading'],
+        'assess' => ['local_tm_certification_assess', 'setting_assess_heading'],
+        'instrval' => ['local_tm_certification_instr_validity', 'setting_instr_validity_heading'],
+        'roles' => ['local_tm_certification_roles', 'setting_roles_heading'],
+        'notify' => ['local_tm_certification_notify', 'setting_notify_heading'],
+        'about' => ['local_tm_certification_about', 'nav_plugin_about'],
+    ];
+    foreach ($settingslinks as $suffix => $meta) {
+        [$section, $strkey] = $meta;
+        $node->add(
+            get_string($strkey, 'local_tm_certification'),
+            new moodle_url('/admin/settings.php', ['section' => $section]),
+            $nodetype,
+            null,
+            $keyprefix . '_' . $suffix
+        );
+    }
+}
+
+/**
+ * Left flat navigation (Boost drawer): 檢定管理 + children.
  */
 function local_tm_certification_extend_navigation(global_navigation $nav): void {
     if (!isloggedin() || isguestuser()) {
@@ -245,12 +333,7 @@ function local_tm_certification_extend_navigation(global_navigation $nav): void 
     }
 
     require_once(__DIR__ . '/classes/permissions_manager.php');
-    $canaccess = is_siteadmin()
-        || \local_tm_certification\permissions_manager::user_can_manage()
-        || \local_tm_certification\permissions_manager::user_can_approve()
-        || \local_tm_certification\permissions_manager::user_can_instruct()
-        || \local_tm_certification\permissions_manager::user_can_examinee();
-    if (!$canaccess) {
+    if (!\local_tm_certification\permissions_manager::user_can_view_plugin()) {
         return;
     }
 
@@ -265,39 +348,47 @@ function local_tm_certification_extend_navigation(global_navigation $nav): void 
     $node->showinflatnavigation = true;
     $node->force_open();
 
-    $node->add(
-        get_string('nav_dashboard', 'local_tm_certification'),
-        new moodle_url('/local/tm_certification/index.php'),
-        navigation_node::TYPE_CUSTOM,
-        null,
-        'tm_certification_dash'
-    );
-
-    $node->add(
-        get_string('nav_my_certificates', 'local_tm_certification'),
-        new moodle_url('/local/tm_certification/my_certificates.php'),
-        navigation_node::TYPE_CUSTOM,
-        null,
-        'tm_certification_certs'
-    );
-
-    if (\local_tm_certification\permissions_manager::user_can_manage()
-        || \local_tm_certification\permissions_manager::user_can_approve()) {
-        $node->add(
-            get_string('nav_sessions', 'local_tm_certification'),
-            new moodle_url('/local/tm_certification/admin/sessions.php'),
-            navigation_node::TYPE_CUSTOM,
-            null,
-            'tm_certification_sessions'
-        );
-    }
+    local_tm_certification_add_nav_children($node, 'tm_certification', navigation_node::TYPE_CUSTOM);
 }
 
 /**
- * Keep settings navigation untouched to avoid affecting site administration tree.
+ * Classic / Administration block on site home (and frontpage settings).
  */
-function local_tm_certification_extend_settings_navigation(settings_navigation $settings, context $context): void {
-    return;
+function local_tm_certification_extend_settings_navigation(settings_navigation $settingsnav, context $context): void {
+    global $PAGE;
+
+    if (!isloggedin() || isguestuser()) {
+        return;
+    }
+
+    require_once(__DIR__ . '/classes/permissions_manager.php');
+    if (!\local_tm_certification\permissions_manager::user_can_manage() && !is_siteadmin()) {
+        return;
+    }
+
+    $onfrontpage = ($context->contextlevel === CONTEXT_COURSE && (int)$context->instanceid === (int)SITEID);
+    $onfpsettings = false;
+    if (!empty($PAGE) && !empty($PAGE->pagetype)) {
+        $onfpsettings = ($PAGE->pagetype === 'admin-setting-frontpagesettings');
+        if (!$onfpsettings && strpos($PAGE->pagetype, 'admin-setting') === 0) {
+            $onfpsettings = (optional_param('section', '', PARAM_ALPHANUMEXT) === 'frontpagesettings');
+        }
+    }
+    if (!$onfrontpage && !$onfpsettings) {
+        return;
+    }
+
+    $node = $settingsnav->add(
+        get_string('nav_main', 'local_tm_certification'),
+        new moodle_url('/local/tm_certification/index.php'),
+        navigation_node::TYPE_SETTING,
+        null,
+        'tm_certification_fp_manage',
+        new pix_icon('i/settings', '')
+    );
+    $node->force_open();
+
+    local_tm_certification_add_nav_children($node, 'tm_cert_fp', navigation_node::TYPE_SETTING);
 }
 
 /**

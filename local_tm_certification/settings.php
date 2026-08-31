@@ -292,14 +292,6 @@ if ($hassiteconfig) {
         $ADMIN->add('local_tm_certification_cat', $roles);
     }
 
-    if (!$ADMIN->locate('local_tm_certification_permissions_ext')) {
-        $ADMIN->add('local_tm_certification_cat', new admin_externalpage(
-            'local_tm_certification_permissions_ext',
-            get_string('nav_permissions', 'local_tm_certification'),
-            new moodle_url('/local/tm_certification/settings/permissions.php'),
-            'local/tm_certification:manage'
-        ));
-    }
     if (!$ADMIN->locate('local_tm_certification_venues_ext')) {
         $ADMIN->add('local_tm_certification_cat', new admin_externalpage(
             'local_tm_certification_venues_ext',
