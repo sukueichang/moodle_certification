@@ -231,6 +231,10 @@ class application_manager {
 
         $transaction = $DB->start_delegated_transaction();
 
+        require_once(__DIR__ . '/assessment_manager.php');
+        $attcmids = assessment_manager::attendance_cmids_for_level((string)$app->certlevel);
+        $primaryatt = !empty($attcmids) ? (int)reset($attcmids) : 0;
+
         $sessionid = session_manager::create_session([
             'certlevel' => $app->certlevel,
             'venueid' => (int)$app->venueid,
@@ -239,7 +243,7 @@ class application_manager {
             'instructorid' => (int)$app->instructorid,
             'status' => session_manager::STATUS_OPEN,
             'createdby' => (int)$USER->id,
-            'attendancecmid' => catalog_manager::get_attendance_cmid_for_level((string)$app->certlevel),
+            'attendancecmid' => $primaryatt,
         ]);
 
         $att = attendance_helper::ensure_attendance_slot_for_session($sessionid);

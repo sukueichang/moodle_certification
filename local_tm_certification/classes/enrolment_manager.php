@@ -283,6 +283,15 @@ class enrolment_manager {
             'local_tm_cert_enrols',
             'userid = :userid AND (practicalpass = 1 OR practicalscore IS NOT NULL)',
             ['userid' => $userid]
+        ) || (
+            $DB->get_manager()->table_exists('local_tm_cert_assess_res')
+            && $DB->record_exists_sql(
+                "SELECT 1
+                   FROM {local_tm_cert_assess_res} r
+                   JOIN {local_tm_cert_enrols} e ON e.id = r.enrolid
+                  WHERE e.userid = :userid AND r.score IS NOT NULL",
+                ['userid' => $userid]
+            )
         );
     }
 

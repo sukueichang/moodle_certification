@@ -90,32 +90,12 @@ class prerequisite_helper {
      * }
      */
     public static function evaluate_level_pass(int $userid, string $level): array {
-        global $DB;
-
         $writtenrequired = assessment_manager::has_written_exam($level);
         $written = assessment_manager::check_written_result($userid, $level);
         $writtenok = !$writtenrequired || (!empty($written['passed']));
 
-        $sql = "SELECT e.id, e.practicalpass, e.practicalscore, e.status
-                  FROM {local_tm_cert_enrols} e
-                  JOIN {local_tm_cert_sessions} s ON s.id = e.sessionid
-                 WHERE e.userid = :userid
-                   AND s.certlevel = :level
-                   AND e.status <> :cancelled";
-        $enrols = $DB->get_records_sql($sql, [
-            'userid' => $userid,
-            'level' => $level,
-            'cancelled' => enrolment_manager::ENROL_CANCELLED,
-        ]);
-
-        $practicalok = false;
-        foreach ($enrols as $enrol) {
-            if ((int)$enrol->practicalpass === 1
-                    && $enrol->practicalscore !== null && $enrol->practicalscore !== '') {
-                $practicalok = true;
-                break;
-            }
-        }
+        // All required manual components on any enrol, or legacy 〔參〕.
+        $practicalok = assessment_manager::user_has_manuals_passed_for_level($userid, $level);
         if (!$practicalok) {
             $practicalok = attendance_helper::user_has_present_mark_for_level($userid, $level);
         }

@@ -39,11 +39,12 @@ if ($action === 'approve' && $appid && $confirm) {
     require_sesskey();
     try {
         $sessionid = application_manager::approve($appid, $note);
-        $attcm = catalog_manager::get_attendance_cmid_for_level(
+        require_once(__DIR__ . '/../classes/assessment_manager.php');
+        $attcmids = \local_tm_certification\assessment_manager::attendance_cmids_for_level(
             (string)application_manager::get_application($appid)->certlevel
         );
         $msg = get_string('app_approve_success', 'local_tm_certification', $sessionid);
-        if ($attcm <= 0) {
+        if (empty($attcmids)) {
             $msg .= ' ' . get_string('app_approve_attendance_skipped', 'local_tm_certification');
         }
         redirect(

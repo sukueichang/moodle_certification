@@ -244,89 +244,18 @@ function local_tm_certification_before_standard_top_of_body_html(): string {
  * @param int $nodetype navigation_node::TYPE_CUSTOM or TYPE_SETTING
  */
 function local_tm_certification_add_nav_children(navigation_node $node, string $keyprefix, int $nodetype): void {
-    $node->add(
-        get_string('nav_dashboard', 'local_tm_certification'),
-        new moodle_url('/local/tm_certification/index.php'),
-        $nodetype,
-        null,
-        $keyprefix . '_dash'
-    );
-    $node->add(
-        get_string('nav_my_certificates', 'local_tm_certification'),
-        new moodle_url('/local/tm_certification/my_certificates.php'),
-        $nodetype,
-        null,
-        $keyprefix . '_certs'
-    );
+    require_once(__DIR__ . '/classes/admin_menu.php');
 
-    $canmanage = \local_tm_certification\permissions_manager::user_can_manage();
-    $canapprove = \local_tm_certification\permissions_manager::user_can_approve();
-
-    if ($canmanage || $canapprove) {
+    foreach (\local_tm_certification\admin_menu::items() as $item) {
+        if (!\local_tm_certification\admin_menu::user_can_see($item)) {
+            continue;
+        }
         $node->add(
-            get_string('nav_sessions', 'local_tm_certification'),
-            new moodle_url('/local/tm_certification/admin/sessions.php'),
+            get_string($item['labelkey'], 'local_tm_certification'),
+            $item['url'],
             $nodetype,
             null,
-            $keyprefix . '_sessions'
-        );
-        $node->add(
-            get_string('nav_applications', 'local_tm_certification'),
-            new moodle_url('/local/tm_certification/admin/review.php'),
-            $nodetype,
-            null,
-            $keyprefix . '_apps'
-        );
-    }
-
-    if ($canmanage) {
-        $node->add(
-            get_string('nav_venues', 'local_tm_certification'),
-            new moodle_url('/local/tm_certification/admin/venues.php'),
-            $nodetype,
-            null,
-            $keyprefix . '_venues'
-        );
-        $node->add(
-            get_string('nav_instructor_levels', 'local_tm_certification'),
-            new moodle_url('/local/tm_certification/admin/instructors.php'),
-            $nodetype,
-            null,
-            $keyprefix . '_instr'
-        );
-        $node->add(
-            get_string('nav_legacy_migrate', 'local_tm_certification'),
-            new moodle_url('/local/tm_certification/admin/legacy_name_migrate.php'),
-            $nodetype,
-            null,
-            $keyprefix . '_legacy_mig'
-        );
-    }
-
-    // Admin settingpages require site config — only show shortcuts to those who can open them.
-    $sysctx = context_system::instance();
-    if (!has_capability('moodle/site:config', $sysctx)) {
-        return;
-    }
-
-    $settingslinks = [
-        'dashboard' => ['local_tm_certification_dashboard', 'setting_dashboard_heading'],
-        'coursemap' => ['local_tm_certification_coursemap', 'setting_coursemap_heading'],
-        'attmap' => ['local_tm_certification_attmap', 'setting_attendance_map_heading'],
-        'assess' => ['local_tm_certification_assess', 'setting_assess_heading'],
-        'instrval' => ['local_tm_certification_instr_validity', 'setting_instr_validity_heading'],
-        'roles' => ['local_tm_certification_roles', 'setting_roles_heading'],
-        'notify' => ['local_tm_certification_notify', 'setting_notify_heading'],
-        'about' => ['local_tm_certification_about', 'nav_plugin_about'],
-    ];
-    foreach ($settingslinks as $suffix => $meta) {
-        [$section, $strkey] = $meta;
-        $node->add(
-            get_string($strkey, 'local_tm_certification'),
-            new moodle_url('/admin/settings.php', ['section' => $section]),
-            $nodetype,
-            null,
-            $keyprefix . '_' . $suffix
+            $keyprefix . '_' . $item['key']
         );
     }
 }

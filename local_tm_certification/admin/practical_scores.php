@@ -1,6 +1,7 @@
 <?php
 /**
- * Enter practical scores for a certification session.
+ * Enter / view practical assessment for a certification session.
+ * Manual components: score entry. Attendance components: read 〔參〕/〔缺〕 status.
  *
  * @package    local_tm_certification
  */
@@ -36,33 +37,49 @@ $PAGE->set_pagelayout('standard');
 $PAGE->set_title(get_string('practical_page_title', 'local_tm_certification'));
 $PAGE->set_heading(get_string('practical_page_title', 'local_tm_certification'));
 
-$threshold = assessment_manager::practical_pass_score((string)$session->certlevel);
-$haswritten = assessment_manager::has_written_exam((string)$session->certlevel);
+$level = (string)$session->certlevel;
+assessment_manager::ensure_blueprint($level);
+$manuals = assessment_manager::get_components($level, assessment_manager::TYPE_MANUAL);
+$attendances = assessment_manager::get_components($level, assessment_manager::TYPE_ATTENDANCE);
+$practicals = array_merge($attendances, $manuals);
+$haswritten = assessment_manager::has_written_exam($level);
 $rosterurl = new moodle_url('/local/tm_certification/admin/roster.php', ['sessionid' => $sessionid]);
 
 if (optional_param('save', 0, PARAM_INT) && confirm_sesskey()) {
-    $scores = optional_param_array('score', [], PARAM_RAW);
     $ok = 0;
     $fail = 0;
     $attwarn = 0;
-    foreach ($scores as $enrolid => $raw) {
-        $enrolid = (int)$enrolid;
-        $raw = trim((string)$raw);
-        if ($raw === '') {
-            continue;
-        }
-        if (!is_numeric($raw)) {
-            $fail++;
-            continue;
-        }
-        try {
-            $result = assessment_manager::save_practical_score($enrolid, (float)$raw, (int)$USER->id);
-            $ok++;
-            if (empty($result['attendance']['ok'])) {
-                $attwarn++;
+    foreach ($manuals as $comp) {
+        $scores = optional_param_array('score_' . (int)$comp->id, [], PARAM_RAW);
+        foreach ($scores as $enrolid => $raw) {
+            $enrolid = (int)$enrolid;
+            $raw = trim((string)$raw);
+            if ($raw === '') {
+                continue;
             }
-        } catch (Throwable $e) {
-            $fail++;
+            if (!is_numeric($raw)) {
+                $fail++;
+                continue;
+            }
+            $score = (float)$raw;
+            if ($score < 0 || $score > 100) {
+                $fail++;
+                continue;
+            }
+            try {
+                $result = assessment_manager::save_component_score(
+                    $enrolid,
+                    (int)$comp->id,
+                    $score,
+                    (int)$USER->id
+                );
+                $ok++;
+                if (!empty($result['attendance']) && empty($result['attendance']['ok'])) {
+                    $attwarn++;
+                }
+            } catch (Throwable $e) {
+                $fail++;
+            }
         }
     }
     $msg = get_string('practical_save_result', 'local_tm_certification', (object)[
@@ -79,7 +96,6 @@ if (optional_param('save', 0, PARAM_INT) && confirm_sesskey()) {
 
 $roster = enrolment_manager::get_session_roster($sessionid);
 $count = count($roster);
-$thresholdlabel = format_float($threshold, $threshold == floor($threshold) ? 0 : 1);
 
 echo $OUTPUT->header();
 echo html_writer::start_div('tm-cert-dash');
@@ -90,13 +106,22 @@ echo html_writer::tag('h2', get_string('practical_page_title', 'local_tm_certifi
 echo html_writer::start_div('tm-cert-facts');
 echo dashboard_helper::render_pill(['label' => format_string($session->name), 'mod' => '']);
 echo dashboard_helper::render_pill([
-    'label' => get_string('practical_threshold_short', 'local_tm_certification', $thresholdlabel),
-    'mod' => '',
-]);
-echo dashboard_helper::render_pill([
     'label' => get_string('dash_session_people', 'local_tm_certification', $count),
     'mod' => '',
 ]);
+foreach ($attendances as $comp) {
+    echo dashboard_helper::render_pill([
+        'label' => $comp->label . ' · ' . get_string('assess_pass_via_present', 'local_tm_certification'),
+        'mod' => 'info',
+    ]);
+}
+foreach ($manuals as $comp) {
+    $th = format_float((float)$comp->passscore, ((float)$comp->passscore == floor((float)$comp->passscore)) ? 0 : 1);
+    echo dashboard_helper::render_pill([
+        'label' => $comp->label . ' ≥ ' . $th,
+        'mod' => '',
+    ]);
+}
 if ($haswritten) {
     echo dashboard_helper::render_pill([
         'label' => get_string('practical_needs_written', 'local_tm_certification'),
@@ -116,6 +141,9 @@ echo html_writer::link($rosterurl, get_string('roster_back_list', 'local_tm_cert
 echo html_writer::end_div();
 echo html_writer::end_div();
 
+if (!empty($attendances)) {
+    echo html_writer::div(get_string('practical_attendance_readonly_hint', 'local_tm_certification'), 'tm-cert-hint-info');
+}
 if ($haswritten) {
     echo html_writer::div(get_string('practical_written_hint_short', 'local_tm_certification'), 'tm-cert-hint-info');
 }
@@ -123,13 +151,11 @@ if ($haswritten) {
 echo html_writer::start_div('tm-cert-panel');
 echo html_writer::start_div('tm-cert-ph');
 echo html_writer::tag('h3', get_string('practical_section_title', 'local_tm_certification'));
-echo html_writer::span(
-    get_string('practical_threshold_rule', 'local_tm_certification', $thresholdlabel),
-    'tm-cert-ph-sub'
-);
 echo html_writer::end_div();
 
-if (empty($roster)) {
+if (empty($practicals)) {
+    echo html_writer::div(get_string('practical_no_manuals', 'local_tm_certification'), 'tm-cert-hint-info');
+} else if (empty($roster)) {
     echo html_writer::start_div('tm-cert-empty');
     echo html_writer::tag('strong', get_string('enrol_empty_title', 'local_tm_certification'));
     echo html_writer::div(get_string('practical_empty_hint', 'local_tm_certification'));
@@ -140,21 +166,26 @@ if (empty($roster)) {
     );
     echo html_writer::end_div();
 } else {
-    echo html_writer::start_tag('form', [
-        'method' => 'post',
-        'action' => $PAGE->url->out(false),
-        'class' => 'tm-cert-score-form',
-    ]);
-    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
-    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'save', 'value' => 1]);
-    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sessionid', 'value' => $sessionid]);
+    $hasmanual = !empty($manuals);
+    if ($hasmanual) {
+        echo html_writer::start_tag('form', [
+            'method' => 'post',
+            'action' => $PAGE->url->out(false),
+            'class' => 'tm-cert-score-form',
+        ]);
+        echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
+        echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'save', 'value' => 1]);
+        echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sessionid', 'value' => $sessionid]);
+    }
 
     echo html_writer::start_tag('table', ['class' => 'tm-cert-data tm-cert-score-table']);
     echo html_writer::start_tag('thead');
     $head = html_writer::tag('th', get_string('fullname'))
-        . html_writer::tag('th', get_string('candidate_id', 'local_tm_certification'))
-        . html_writer::tag('th', get_string('practical_score', 'local_tm_certification'), ['class' => 'tm-cert-num'])
-        . html_writer::tag('th', get_string('practical_result_short', 'local_tm_certification'));
+        . html_writer::tag('th', get_string('candidate_id', 'local_tm_certification'));
+    foreach ($practicals as $comp) {
+        $head .= html_writer::tag('th', s($comp->label));
+        $head .= html_writer::tag('th', get_string('practical_result_short', 'local_tm_certification'));
+    }
     if ($haswritten) {
         $head .= html_writer::tag('th', get_string('written_result_short', 'local_tm_certification'));
     }
@@ -163,27 +194,80 @@ if (empty($roster)) {
     echo html_writer::start_tag('tbody');
 
     foreach ($roster as $row) {
-        $scoreval = ($row->practicalscore !== null && $row->practicalscore !== '')
-            ? format_float((float)$row->practicalscore, 2, true, true)
-            : '';
+        echo html_writer::start_tag('tr');
+        echo html_writer::tag('td', s(trim((string)$row->lastname . (string)$row->firstname)),
+            ['class' => 'tm-cert-row-name']);
+        echo html_writer::tag('td', s((string)($row->candidateid ?? $row->username)), ['class' => 'tm-cert-id']);
 
-        if ($row->practicalscore !== null && $row->practicalscore !== '') {
-            $passpill = dashboard_helper::render_pill([
-                'label' => ((int)$row->practicalpass === 1)
-                    ? get_string('practical_pass', 'local_tm_certification')
-                    : get_string('practical_fail', 'local_tm_certification'),
-                'mod' => ((int)$row->practicalpass === 1) ? 'ok' : 'bad',
+        foreach ($practicals as $comp) {
+            if ((string)$comp->type === assessment_manager::TYPE_ATTENDANCE) {
+                $r = assessment_manager::check_attendance_component((int)$row->userid, $comp, $session);
+                $cell = html_writer::span(get_string('assess_type_attendance', 'local_tm_certification'), 'text-muted');
+                if (!empty($r['pending'])) {
+                    $passpill = dashboard_helper::render_pill([
+                        'label' => get_string('practical_pending', 'local_tm_certification'),
+                        'mod' => 'dim',
+                    ]);
+                } else if (!empty($r['passed'])) {
+                    $passpill = dashboard_helper::render_pill([
+                        'label' => get_string('practical_pass', 'local_tm_certification'),
+                        'mod' => 'ok',
+                    ]);
+                } else {
+                    $passpill = dashboard_helper::render_pill([
+                        'label' => get_string('practical_fail', 'local_tm_certification'),
+                        'mod' => 'bad',
+                    ]);
+                }
+                echo html_writer::tag('td', $cell);
+                echo html_writer::tag('td', $passpill);
+                continue;
+            }
+
+            $r = assessment_manager::get_manual_result((int)$row->id, (int)$comp->id);
+            if ($r['pending'] && (string)$comp->code === assessment_manager::CODE_PRACTICAL
+                    && $row->practicalscore !== null && $row->practicalscore !== '') {
+                $r = [
+                    'score' => (float)$row->practicalscore,
+                    'passed' => ((int)$row->practicalpass === 1),
+                    'pending' => false,
+                ];
+            }
+            $scoreval = !$r['pending']
+                ? format_float((float)$r['score'], 2, true, true)
+                : '';
+
+            if (!$r['pending']) {
+                $passpill = dashboard_helper::render_pill([
+                    'label' => !empty($r['passed'])
+                        ? get_string('practical_pass', 'local_tm_certification')
+                        : get_string('practical_fail', 'local_tm_certification'),
+                    'mod' => !empty($r['passed']) ? 'ok' : 'bad',
+                ]);
+            } else {
+                $passpill = dashboard_helper::render_pill([
+                    'label' => get_string('practical_pending', 'local_tm_certification'),
+                    'mod' => 'dim',
+                ]);
+            }
+
+            $input = html_writer::empty_tag('input', [
+                'type' => 'number',
+                'name' => 'score_' . (int)$comp->id . '[' . (int)$row->id . ']',
+                'value' => $scoreval,
+                'class' => 'tm-cert-score-input',
+                'min' => '0',
+                'max' => '100',
+                'step' => 'any',
+                'inputmode' => 'decimal',
+                'autocomplete' => 'off',
             ]);
-        } else {
-            $passpill = dashboard_helper::render_pill([
-                'label' => get_string('practical_pending', 'local_tm_certification'),
-                'mod' => 'dim',
-            ]);
+            echo html_writer::tag('td', $input, ['class' => 'tm-cert-num']);
+            echo html_writer::tag('td', $passpill);
         }
 
-        $writtenpill = '';
         if ($haswritten) {
-            $written = assessment_manager::check_written_result((int)$row->userid, (string)$session->certlevel);
+            $written = assessment_manager::check_written_result((int)$row->userid, $level);
             if ($written['score'] === null) {
                 $writtenpill = dashboard_helper::render_pill([
                     'label' => get_string('written_no_score_short', 'local_tm_certification'),
@@ -202,24 +286,6 @@ if (empty($roster)) {
                     'mod' => 'bad',
                 ]);
             }
-        }
-
-        $input = html_writer::empty_tag('input', [
-            'type' => 'text',
-            'name' => 'score[' . (int)$row->id . ']',
-            'value' => $scoreval,
-            'class' => 'tm-cert-score-input',
-            'inputmode' => 'decimal',
-            'autocomplete' => 'off',
-        ]);
-
-        echo html_writer::start_tag('tr');
-        echo html_writer::tag('td', s(trim((string)$row->lastname . (string)$row->firstname)),
-            ['class' => 'tm-cert-row-name']);
-        echo html_writer::tag('td', s((string)($row->candidateid ?? $row->username)), ['class' => 'tm-cert-id']);
-        echo html_writer::tag('td', $input, ['class' => 'tm-cert-num']);
-        echo html_writer::tag('td', $passpill);
-        if ($haswritten) {
             echo html_writer::tag('td', $writtenpill);
         }
         echo html_writer::end_tag('tr');
@@ -229,19 +295,25 @@ if (empty($roster)) {
     echo html_writer::end_tag('table');
 
     echo html_writer::start_div('tm-cert-panel-foot');
-    echo html_writer::span(get_string('practical_blank_skip', 'local_tm_certification'), 'tm-cert-foot-note');
+    if ($hasmanual) {
+        echo html_writer::span(get_string('practical_blank_skip', 'local_tm_certification'), 'tm-cert-foot-note');
+    }
     echo html_writer::start_div('tm-cert-ops');
     echo html_writer::link($rosterurl, get_string('roster_back_list', 'local_tm_certification'),
         ['class' => 'btn btn-secondary']);
-    echo html_writer::empty_tag('input', [
-        'type' => 'submit',
-        'value' => get_string('practical_save', 'local_tm_certification'),
-        'class' => 'btn btn-primary',
-    ]);
+    if ($hasmanual) {
+        echo html_writer::empty_tag('input', [
+            'type' => 'submit',
+            'value' => get_string('practical_save', 'local_tm_certification'),
+            'class' => 'btn btn-primary',
+        ]);
+    }
     echo html_writer::end_div();
     echo html_writer::end_div();
 
-    echo html_writer::end_tag('form');
+    if ($hasmanual) {
+        echo html_writer::end_tag('form');
+    }
 }
 
 echo html_writer::end_div();

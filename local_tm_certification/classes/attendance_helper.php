@@ -79,20 +79,21 @@ class attendance_helper {
     }
 
     /**
-     * After session create/approve: add a slot inside the mapped existing attendance activity.
+     * Ensure a session slot inside one existing attendance activity (by cmid).
      * Does NOT create a new mod_attendance activity.
+     * When $updateprimary is true, stores cmid/sessid on the cert session (legacy single pointer).
      *
      * @return array{cmid:int|null, attendancesessid:int|null, warning:?string}
      */
-    public static function ensure_attendance_slot_for_session(int $sessionid): array {
+    public static function ensure_attendance_slot_on_cmid(
+        int $sessionid,
+        int $cmid,
+        bool $updateprimary = false
+    ): array {
         global $DB;
 
         $session = session_manager::get_session($sessionid);
         $result = ['cmid' => null, 'attendancesessid' => null, 'warning' => null];
-
-        $cmid = !empty($session->attendancecmid)
-            ? (int)$session->attendancecmid
-            : catalog_manager::get_attendance_cmid_for_level((string)$session->certlevel);
 
         if ($cmid <= 0) {
             $result['warning'] = 'no_attendance_mapping';
@@ -105,7 +106,6 @@ class attendance_helper {
             return $result;
         }
 
-        // Prefer mapped course match; if mismatch, still allow but warn.
         $mappedcourse = catalog_manager::get_moodle_courseid_for_level((string)$session->certlevel);
         if ($mappedcourse > 0 && $resolved['courseid'] !== $mappedcourse) {
             $result['warning'] = 'attendance_course_mismatch';
@@ -117,7 +117,9 @@ class attendance_helper {
         $desc = (string)$session->name;
 
         $existing = null;
-        if (!empty($session->attendancesessid)) {
+        // Only reuse session.attendancesessid when it belongs to this same attendance activity.
+        if ($updateprimary && !empty($session->attendancesessid)
+                && (int)$session->attendancecmid === (int)$resolved['cmid']) {
             $existing = $DB->get_record('attendance_sessions', [
                 'id' => (int)$session->attendancesessid,
                 'attendanceid' => $attendanceid,
@@ -152,12 +154,14 @@ class attendance_helper {
             $attsessid = (int)$DB->insert_record('attendance_sessions', $slot);
         }
 
-        $upd = new \stdClass();
-        $upd->id = $sessionid;
-        $upd->attendancecmid = $resolved['cmid'];
-        $upd->attendancesessid = $attsessid;
-        $upd->timemodified = time();
-        $DB->update_record('local_tm_cert_sessions', $upd);
+        if ($updateprimary) {
+            $upd = new \stdClass();
+            $upd->id = $sessionid;
+            $upd->attendancecmid = $resolved['cmid'];
+            $upd->attendancesessid = $attsessid;
+            $upd->timemodified = time();
+            $DB->update_record('local_tm_cert_sessions', $upd);
+        }
 
         $result['cmid'] = $resolved['cmid'];
         $result['attendancesessid'] = $attsessid;
@@ -165,18 +169,73 @@ class attendance_helper {
     }
 
     /**
-     * Write/update attendance_log for one student on the session's attendance slot.
-     * Does not create activities. Skips quietly if unmapped.
-     * After writing the log, syncs mod_attendance gradebook for that user (best-effort).
+     * After session create/approve: ensure slots for every attendance activity linked
+     * by this level's assessment components (unique cmids). Falls back to legacy level map.
+     *
+     * @return array{cmid:int|null, attendancesessid:int|null, warning:?string, slots:array}
+     */
+    public static function ensure_attendance_slot_for_session(int $sessionid): array {
+        require_once(__DIR__ . '/assessment_manager.php');
+
+        $session = session_manager::get_session($sessionid);
+        $level = (string)$session->certlevel;
+        $cmids = assessment_manager::attendance_cmids_for_level($level);
+
+        // Prefer already-stored session cmid if components list is empty.
+        if (empty($cmids) && !empty($session->attendancecmid)) {
+            $cmids = [(int)$session->attendancecmid];
+        }
+
+        $aggregate = [
+            'cmid' => null,
+            'attendancesessid' => null,
+            'warning' => null,
+            'slots' => [],
+        ];
+        if (empty($cmids)) {
+            $aggregate['warning'] = 'no_attendance_mapping';
+            return $aggregate;
+        }
+
+        $first = true;
+        foreach ($cmids as $cmid) {
+            $slot = self::ensure_attendance_slot_on_cmid($sessionid, (int)$cmid, $first);
+            $aggregate['slots'][] = $slot;
+            if ($first) {
+                $aggregate['cmid'] = $slot['cmid'];
+                $aggregate['attendancesessid'] = $slot['attendancesessid'];
+                $aggregate['warning'] = $slot['warning'];
+                $first = false;
+            } else if (!empty($slot['warning']) && empty($aggregate['warning'])) {
+                $aggregate['warning'] = $slot['warning'];
+            }
+        }
+        return $aggregate;
+    }
+
+    /**
+     * Write/update attendance_log for one student on a specific attendance activity (cmid).
+     * When $cmid is 0, uses the session primary / level fallback (legacy).
      *
      * @param bool $present true = 〔參〕/Present, false = 〔缺〕/Absent
      * @return array{ok:bool,warning:?string}
      */
-    public static function upsert_practical_mark(int $sessionid, int $userid, bool $present, string $remarks): array {
+    public static function upsert_practical_mark(
+        int $sessionid,
+        int $userid,
+        bool $present,
+        string $remarks,
+        int $cmid = 0
+    ): array {
         global $DB, $USER;
 
         $out = ['ok' => false, 'warning' => null];
-        $slot = self::ensure_attendance_slot_for_session($sessionid);
+
+        if ($cmid > 0) {
+            $slot = self::ensure_attendance_slot_on_cmid($sessionid, $cmid, false);
+        } else {
+            $slot = self::ensure_attendance_slot_for_session($sessionid);
+        }
         if (empty($slot['attendancesessid']) || empty($slot['cmid'])) {
             $out['warning'] = $slot['warning'] ?? 'no_attendance_mapping';
             return $out;
@@ -230,8 +289,6 @@ class attendance_helper {
         $DB->set_field('attendance_sessions', 'lasttakenby', $takenby, ['id' => $attsessid]);
         $DB->set_field('attendance_sessions', 'timemodified', $now, ['id' => $attsessid]);
 
-        // Same as Moodle take-attendance save: push status points into the gradebook.
-        // Without this, 〔參〕／〔缺〕 shows on the activity but gradebook stays empty.
         self::sync_attendance_gradebook($attendanceid, $userid);
 
         $out['ok'] = true;
@@ -276,37 +333,118 @@ class attendance_helper {
     }
 
     /**
-     * Whether the user has at least one 〔參〕/Present mark on the level's mapped attendance activity.
-     * Used for legacy learners who passed practical before this plugin tracked practicalpass.
+     * Whether the user has at least one 〔參〕/Present mark on any attendance activity
+     * linked for the level (components, else legacy level map).
      */
     public static function user_has_present_mark_for_level(int $userid, string $level): bool {
+        require_once(__DIR__ . '/assessment_manager.php');
+        $cmids = assessment_manager::attendance_cmids_for_level($level);
+        foreach ($cmids as $cmid) {
+            $r = self::check_present_on_cmid($userid, (int)$cmid);
+            if (!empty($r['passed'])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Read 〔參〕/Present (or 〔缺〕) for a user on an attendance activity.
+     *
+     * If $preferattsessid > 0 and a log exists for that slot, that log wins.
+     * Otherwise any Present on the activity counts as pass; only Absent marks ⇒ fail;
+     * no log ⇒ pending.
+     *
+     * @return array{required:bool,passed:?bool,pending:bool,warning:?string,score:?float}
+     */
+    public static function check_present_on_cmid(int $userid, int $cmid, int $preferattsessid = 0): array {
         global $DB;
 
-        if ($userid <= 0) {
-            return false;
+        $empty = [
+            'required' => true,
+            'passed' => null,
+            'pending' => true,
+            'warning' => null,
+            'score' => null,
+        ];
+        if ($userid <= 0 || $cmid <= 0) {
+            $empty['warning'] = 'attendance_cm_invalid';
+            return $empty;
         }
-        $cmid = catalog_manager::get_attendance_cmid_for_level($level);
         $resolved = self::resolve_from_cmid($cmid);
         if (!$resolved) {
-            return false;
+            $empty['warning'] = 'attendance_cm_invalid';
+            return $empty;
         }
 
-        $statusids = self::present_status_ids((int)$resolved['attendanceid']);
-        if (empty($statusids)) {
-            return false;
+        $attendanceid = (int)$resolved['attendanceid'];
+        $presentids = self::present_status_ids($attendanceid);
+
+        if ($preferattsessid > 0) {
+            $log = $DB->get_record('attendance_log', [
+                'sessionid' => $preferattsessid,
+                'studentid' => $userid,
+            ]);
+            if ($log) {
+                $sid = (int)$log->statusid;
+                $ispresent = in_array($sid, $presentids, true);
+                $grade = $DB->get_field('attendance_statuses', 'grade', ['id' => $sid]);
+                return [
+                    'required' => true,
+                    'passed' => $ispresent,
+                    'pending' => false,
+                    'warning' => null,
+                    'score' => $grade !== false ? (float)$grade : null,
+                ];
+            }
         }
 
-        list($insql, $params) = $DB->get_in_or_equal($statusids, SQL_PARAMS_NAMED, 'st');
+        if (empty($presentids)) {
+            $empty['warning'] = 'attendance_status_missing';
+            return $empty;
+        }
+
+        list($insql, $params) = $DB->get_in_or_equal($presentids, SQL_PARAMS_NAMED, 'st');
         $params['userid'] = $userid;
-        $params['aid'] = (int)$resolved['attendanceid'];
+        $params['aid'] = $attendanceid;
+        $haspresent = $DB->record_exists_sql(
+            "SELECT 1
+               FROM {attendance_log} l
+               JOIN {attendance_sessions} s ON s.id = l.sessionid
+              WHERE l.studentid = :userid
+                AND s.attendanceid = :aid
+                AND l.statusid {$insql}",
+            $params
+        );
+        if ($haspresent) {
+            return [
+                'required' => true,
+                'passed' => true,
+                'pending' => false,
+                'warning' => null,
+                'score' => null,
+            ];
+        }
 
-        $sql = "SELECT 1
-                  FROM {attendance_log} l
-                  JOIN {attendance_sessions} s ON s.id = l.sessionid
-                 WHERE l.studentid = :userid
-                   AND s.attendanceid = :aid
-                   AND l.statusid {$insql}";
-        return $DB->record_exists_sql($sql, $params);
+        $hasany = $DB->record_exists_sql(
+            "SELECT 1
+               FROM {attendance_log} l
+               JOIN {attendance_sessions} s ON s.id = l.sessionid
+              WHERE l.studentid = :userid
+                AND s.attendanceid = :aid",
+            ['userid' => $userid, 'aid' => $attendanceid]
+        );
+        if ($hasany) {
+            return [
+                'required' => true,
+                'passed' => false,
+                'pending' => false,
+                'warning' => null,
+                'score' => null,
+            ];
+        }
+
+        return $empty;
     }
 
     /**
@@ -322,14 +460,6 @@ class attendance_helper {
         }
 
         $ids = [];
-        $override = (int)get_config('local_tm_certification', 'attendance_statusid_present');
-        if ($override > 0 && $DB->record_exists('attendance_statuses', [
-            'id' => $override,
-            'attendanceid' => $attendanceid,
-            'deleted' => 0,
-        ])) {
-            $ids[] = $override;
-        }
 
         $rows = $DB->get_records('attendance_statuses', [
             'attendanceid' => $attendanceid,
@@ -370,16 +500,6 @@ class attendance_helper {
             if (!empty($ids)) {
                 return (int)$ids[0];
             }
-        }
-
-        $cfgkey = $present ? 'attendance_statusid_present' : 'attendance_statusid_absent';
-        $override = (int)get_config('local_tm_certification', $cfgkey);
-        if ($override > 0 && $DB->record_exists('attendance_statuses', [
-            'id' => $override,
-            'attendanceid' => $attendanceid,
-            'deleted' => 0,
-        ])) {
-            return $override;
         }
 
         $rows = $DB->get_records('attendance_statuses', [

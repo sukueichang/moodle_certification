@@ -142,6 +142,7 @@ class catalog_manager {
 
     /**
      * Mapped existing mod_attendance course-module id for a level (0 = not set).
+     * Legacy config key; prefer assessment_manager::attendance_cmids_for_level().
      */
     public static function get_attendance_cmid_for_level(string $level): int {
         return (int)get_config('local_tm_certification', 'mapping_attendance_cmid_' . $level);

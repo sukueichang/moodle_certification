@@ -73,47 +73,29 @@ if (!empty($session->venuename) || !empty($session->venuecode)) {
 $statuslabel = session_manager::status_label($session);
 
 $overall = assessment_manager::evaluate_overall((int)$enrol->id);
-$written = $overall['written'] ?? [
-    'required' => false,
-    'passed' => null,
-    'score' => null,
-];
+$components = $overall['components'] ?? [];
 
-$writtenlabel = get_string('written_not_required', 'local_tm_certification');
-$writtenmod = 'dim';
-if (!empty($written['required'])) {
-    if ($written['passed'] === null) {
-        $writtenlabel = get_string('written_no_score', 'local_tm_certification');
-        $writtenmod = 'dim';
-    } else if (!empty($written['passed'])) {
-        $scoretxt = isset($written['score']) && $written['score'] !== null
-            ? (string)$written['score'] : '';
-        $writtenlabel = $scoretxt !== ''
+$scorerows = [];
+foreach ($components as $comp) {
+    if (!empty($comp['pending']) || $comp['passed'] === null) {
+        $detaillabel = ($comp['type'] === assessment_manager::TYPE_QUIZ)
+            ? get_string('written_no_score', 'local_tm_certification')
+            : get_string('result_practical_pending', 'local_tm_certification');
+        $mod = 'dim';
+    } else if (!empty($comp['passed'])) {
+        $scoretxt = $comp['score'] !== null ? format_float((float)$comp['score'], 2) : '';
+        $detaillabel = $scoretxt !== ''
             ? get_string('written_pass_with_score', 'local_tm_certification', $scoretxt)
             : get_string('result_overall_pass', 'local_tm_certification');
-        $writtenmod = 'ok';
+        $mod = 'ok';
     } else {
-        $scoretxt = isset($written['score']) && $written['score'] !== null
-            ? (string)$written['score'] : '';
-        $writtenlabel = $scoretxt !== ''
+        $scoretxt = $comp['score'] !== null ? format_float((float)$comp['score'], 2) : '';
+        $detaillabel = $scoretxt !== ''
             ? get_string('written_fail_with_score', 'local_tm_certification', $scoretxt)
             : get_string('result_overall_fail', 'local_tm_certification');
-        $writtenmod = 'bad';
+        $mod = 'bad';
     }
-}
-
-$practicalpending = ($enrol->practicalscore === null || $enrol->practicalscore === '');
-if ($practicalpending) {
-    $practicallabel = get_string('result_practical_pending', 'local_tm_certification');
-    $practicalmod = 'dim';
-} else {
-    $scorebit = get_string('result_practical_score', 'local_tm_certification',
-        format_float((float)$enrol->practicalscore, 2));
-    $passbit = !empty($overall['practical_pass'])
-        ? get_string('result_overall_pass', 'local_tm_certification')
-        : get_string('result_overall_fail', 'local_tm_certification');
-    $practicallabel = $passbit . ' · ' . $scorebit;
-    $practicalmod = !empty($overall['practical_pass']) ? 'ok' : 'bad';
+    $scorerows[] = [$comp['label'], $detaillabel, $mod];
 }
 
 if ($overall['overall'] === null) {
@@ -126,6 +108,12 @@ if ($overall['overall'] === null) {
     $overalllabel = get_string('result_overall_fail', 'local_tm_certification');
     $overallmod = 'bad';
 }
+$scorerows[] = [
+    get_string('result_item_overall', 'local_tm_certification'),
+    $overalllabel,
+    $overallmod,
+    true,
+];
 
 $passed = ($overall['overall'] === true);
 $certdownloadurl = null;
@@ -182,11 +170,6 @@ echo html_writer::end_div();
 echo html_writer::start_div('tm-cert-result-card');
 echo html_writer::div(get_string('result_section_scores', 'local_tm_certification'), 'tm-cert-result-eyebrow');
 echo html_writer::start_div('tm-cert-score-stack');
-$scorerows = [
-    [get_string('result_item_written', 'local_tm_certification'), $writtenlabel, $writtenmod],
-    [get_string('result_item_practical', 'local_tm_certification'), $practicallabel, $practicalmod],
-    [get_string('result_item_overall', 'local_tm_certification'), $overalllabel, $overallmod, true],
-];
 foreach ($scorerows as $row) {
     $item = $row[0];
     $detail = $row[1];

@@ -313,5 +313,80 @@ function xmldb_local_tm_certification_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026082803, 'local', 'tm_certification');
     }
 
+    if ($oldversion < 2026083110) {
+        // Assessment blueprint: per-level components + per-enrol results.
+        // Legacy config keys (written_*/practical_pass_*) are NOT removed.
+        $comptable = new xmldb_table('local_tm_cert_assess_comp');
+        if (!$dbman->table_exists($comptable)) {
+            $comptable->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $comptable->add_field('certlevel', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, 'basic');
+            $comptable->add_field('code', XMLDB_TYPE_CHAR, '40', null, XMLDB_NOTNULL, null, null);
+            $comptable->add_field('type', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, 'manual');
+            $comptable->add_field('label', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, null);
+            $comptable->add_field('passscore', XMLDB_TYPE_NUMBER, '10', '2', XMLDB_NOTNULL, null, '0');
+            $comptable->add_field('required', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '1');
+            $comptable->add_field('sortorder', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $comptable->add_field('quizcmid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $comptable->add_field('active', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '1');
+            $comptable->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $comptable->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $comptable->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $comptable->add_key('uq_level_code', XMLDB_KEY_UNIQUE, ['certlevel', 'code']);
+            $comptable->add_index('idx_level_active', XMLDB_INDEX_NOTUNIQUE, ['certlevel', 'active']);
+            $dbman->create_table($comptable);
+        }
+
+        $restable = new xmldb_table('local_tm_cert_assess_res');
+        if (!$dbman->table_exists($restable)) {
+            $restable->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $restable->add_field('enrolid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $restable->add_field('componentid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $restable->add_field('score', XMLDB_TYPE_NUMBER, '10', '2', null, null, null);
+            $restable->add_field('passed', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0');
+            $restable->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $restable->add_field('modifiedby', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $restable->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $restable->add_key('uq_enrol_comp', XMLDB_KEY_UNIQUE, ['enrolid', 'componentid']);
+            $restable->add_index('idx_enrol', XMLDB_INDEX_NOTUNIQUE, ['enrolid']);
+            $restable->add_index('idx_component', XMLDB_INDEX_NOTUNIQUE, ['componentid']);
+            $dbman->create_table($restable);
+        }
+
+        require_once(__DIR__ . '/../classes/assessment_manager.php');
+        \local_tm_certification\assessment_manager::seed_blueprints_from_legacy_config();
+        \local_tm_certification\assessment_manager::migrate_legacy_enrol_scores_to_results();
+
+        upgrade_plugin_savepoint(true, 2026083110, 'local', 'tm_certification');
+    }
+
+    if ($oldversion < 2026083113) {
+        // Mistaken direction (read attendance); corrected in 2026083114.
+        require_once(__DIR__ . '/../classes/assessment_manager.php');
+        \local_tm_certification\assessment_manager::convert_manual_practicals_to_attendance();
+        upgrade_plugin_savepoint(true, 2026083113, 'local', 'tm_certification');
+    }
+
+    if ($oldversion < 2026083114) {
+        // Practical = enter 0–100; ≥ passscore → auto 〔參〕, else 〔缺〕 (original product behaviour).
+        require_once(__DIR__ . '/../classes/assessment_manager.php');
+        \local_tm_certification\assessment_manager::convert_attendance_practicals_to_manual();
+        upgrade_plugin_savepoint(true, 2026083114, 'local', 'tm_certification');
+    }
+
+    if ($oldversion < 2026083115) {
+        // Drop optional "required" UX: every component always counts toward overall pass.
+        if ($dbman->table_exists(new xmldb_table('local_tm_cert_assess_comp'))) {
+            $DB->set_field('local_tm_cert_assess_comp', 'required', 1);
+        }
+        upgrade_plugin_savepoint(true, 2026083115, 'local', 'tm_certification');
+    }
+
+    if ($oldversion < 2026083118) {
+        // Per-component attendance: copy legacy level map into manuals with empty quizcmid.
+        require_once(__DIR__ . '/../classes/assessment_manager.php');
+        \local_tm_certification\assessment_manager::migrate_level_attendance_into_manuals();
+        upgrade_plugin_savepoint(true, 2026083118, 'local', 'tm_certification');
+    }
+
     return true;
 }

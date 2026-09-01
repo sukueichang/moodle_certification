@@ -1,6 +1,6 @@
 <?php
 /**
- * Instructor level authorization settings.
+ * Instructor level authorization + certificate validity settings.
  *
  * @package    local_tm_certification
  */
@@ -30,7 +30,21 @@ $PAGE->set_heading(get_string('nav_instructor_levels', 'local_tm_certification')
 
 $levels = session_manager::level_options();
 
-if (data_submitted() && confirm_sesskey()) {
+if (optional_param('save_validity', 0, PARAM_INT) && confirm_sesskey()) {
+    $extend = optional_param('instructor_extend_by_teaching', 0, PARAM_INT) ? 1 : 0;
+    set_config('instructor_extend_by_teaching', $extend, 'local_tm_certification');
+    foreach ($levels as $lv => $label) {
+        $months = optional_param('validity_months_' . $lv, 12, PARAM_INT);
+        if ($months < 1) {
+            $months = 12;
+        }
+        set_config('instructor_validity_months_' . $lv, $months, 'local_tm_certification');
+    }
+    redirect($PAGE->url, get_string('instructor_validity_saved', 'local_tm_certification'), null,
+        \core\output\notification::NOTIFY_SUCCESS);
+}
+
+if (data_submitted() && confirm_sesskey() && !optional_param('save_validity', 0, PARAM_INT)) {
     $userid = required_param('userid', PARAM_INT);
     $selected = optional_param_array('levels', [], PARAM_ALPHANUMEXT);
     $certifiedraw = trim(optional_param('certifiedat', '', PARAM_TEXT));
@@ -57,10 +71,74 @@ $profiles = catalog_manager::get_instructor_cert_profiles(array_map(static funct
     return (int)$u->id;
 }, $users));
 
+$extendteaching = catalog_manager::instructor_extend_by_teaching();
+
 echo $OUTPUT->header();
+
+echo html_writer::tag('h3', get_string('setting_instr_validity_heading', 'local_tm_certification'));
+echo html_writer::div(get_string('setting_instr_validity_desc', 'local_tm_certification'), 'text-muted mb-3');
+echo html_writer::start_tag('form', [
+    'method' => 'post',
+    'action' => $PAGE->url->out(false),
+    'class' => 'mform mb-4',
+]);
+echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
+echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'save_validity', 'value' => 1]);
+
+echo html_writer::start_div('form-group form-check mb-3');
+echo html_writer::empty_tag('input', [
+    'type' => 'checkbox',
+    'class' => 'form-check-input',
+    'name' => 'instructor_extend_by_teaching',
+    'id' => 'id_instructor_extend_by_teaching',
+    'value' => 1,
+    'checked' => $extendteaching ? 'checked' : null,
+]);
+echo html_writer::tag('label', get_string('setting_instr_extend_teaching', 'local_tm_certification'), [
+    'class' => 'form-check-label',
+    'for' => 'id_instructor_extend_by_teaching',
+]);
+echo html_writer::div(get_string('setting_instr_extend_teaching_desc', 'local_tm_certification'), 'form-text text-muted');
+echo html_writer::end_div();
+
+foreach ($levels as $lv => $label) {
+    $months = catalog_manager::instructor_validity_months($lv);
+    echo html_writer::start_div('form-group row mb-2');
+    echo html_writer::tag('label',
+        get_string('setting_instr_validity_months', 'local_tm_certification', $label),
+        ['class' => 'col-md-3 col-form-label', 'for' => 'id_validity_months_' . $lv]
+    );
+    echo html_writer::start_div('col-md-3');
+    echo html_writer::empty_tag('input', [
+        'type' => 'number',
+        'min' => 1,
+        'step' => 1,
+        'name' => 'validity_months_' . $lv,
+        'id' => 'id_validity_months_' . $lv,
+        'value' => $months,
+        'class' => 'form-control',
+    ]);
+    echo html_writer::div(get_string('setting_instr_validity_months_desc', 'local_tm_certification'), 'form-text text-muted');
+    echo html_writer::end_div();
+    echo html_writer::end_div();
+}
+
+echo html_writer::start_div('form-group row');
+echo html_writer::start_div('col-md-9 offset-md-3');
+echo html_writer::empty_tag('input', [
+    'type' => 'submit',
+    'value' => get_string('instructor_validity_save', 'local_tm_certification'),
+    'class' => 'btn btn-primary',
+]);
+echo html_writer::end_div();
+echo html_writer::end_div();
+echo html_writer::end_tag('form');
+
+echo html_writer::tag('hr', '');
+echo html_writer::tag('h3', get_string('instructor_levels_section', 'local_tm_certification'));
 echo html_writer::tag('p', get_string('instructor_levels_intro', 'local_tm_certification'), ['class' => 'text-muted']);
 echo html_writer::tag('p', get_string('instructor_levels_validity_hint', 'local_tm_certification'), ['class' => 'text-muted']);
-foreach (session_manager::level_options() as $lv => $label) {
+foreach ($levels as $lv => $label) {
     $months = catalog_manager::instructor_validity_months($lv);
     echo html_writer::tag('span',
         get_string('instructor_levels_validity_item', 'local_tm_certification', (object)[
