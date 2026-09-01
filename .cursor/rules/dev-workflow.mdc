@@ -1,0 +1,29 @@
+---
+description: Enforce DEV_WORKFLOW SOP — ok gate, logs, and Windows tar.exe zip packaging
+alwaysApply: true
+---
+
+# local_tm_certification — 開發 SOP（必遵）
+
+完整流程見 `docs/DEV_WORKFLOW.md`；摘要如下，勿另創流程。
+
+## 開工
+
+- 先讀 `docs/BUGFIX_LOG.md` 強制檢查清單與近期條目。
+- 對照 PRD／`docs/P8_P10_ADDENDUM.md`；在 `docs/FEATURE_LOG.md`（或 BUGFIX）留下進行中紀錄。
+
+## 驗收閘門
+
+- 使用者回覆 **ok**／**測試無誤**／**測試無誤了** 之後，才 commit → push → 開／更新 PR。
+- 未獲該訊號前，不主動 commit／push／開 PR（使用者明確要求除外）。
+
+## Windows 打包 zip（上架硬規則）
+
+- **只用** `tar.exe` 打包（內部路徑必須是 `/`）：
+  `tar.exe -a -c -f local_tm_certification.zip -C "<專案根>" local_tm_certification`
+- **禁止** `Compress-Archive` 與 `ZipFile::CreateFromDirectory`（會寫入 `\`，Moodle 無法偵測外掛類型）。
+- 上傳前確認 zip 內 0 筆含 `\` 的路徑；細節見 `DEV_WORKFLOW.md` §4 與 `BUGFIX_LOG`「Windows 打包 zip」。
+
+## 實作慣例
+
+- 不寫死角色 shortname；升版改 `version.php`；語系至少 en + zh_tw。

@@ -4,10 +4,12 @@ Moodle local plugin for Techman certification exam operations.
 
 ## Status
 
-- **Release:** 0.2.0 (P2 sessions + enrol — pending test)
+- **Release:** 0.12.10（見 `local_tm_certification/version.php`）
+- **Active branch:** `feature/certification-0.8.9`
 - **GitHub:** https://github.com/sukueichang/moodle_certification (private)
-- Spec: [`../moodle_certification_plugin_prd.md`](../moodle_certification_plugin_prd.md)
-- UI preview (unified): [`../docs/ui_preview.html`](../docs/ui_preview.html)
+- Spec: [`moodle_certification_plugin_prd.md`](moodle_certification_plugin_prd.md)
+- UI preview: [`docs/ui_preview.html`](docs/ui_preview.html)
+- **AI / 開發 SOP：** [`AGENTS.md`](AGENTS.md) → [`docs/DEV_WORKFLOW.md`](docs/DEV_WORKFLOW.md)（含 Windows `tar.exe` 打包）
 
 ## Install
 
@@ -46,6 +48,9 @@ Role shortnames are **not** hard-coded — assign via plugin settings and/or Def
 - Dashboard shells: manage / instruct / examinee
 - My certificates page (empty shell)
 
-## Next (P2+)
+## Handoff for developers / AI
 
-Sessions, applications, batch enrol, candidate IDs, practical ↔ attendance, certificates.
+1. Clone this repo; work on `feature/certification-0.8.9` (or a branch cut from it).
+2. Follow [`docs/DEV_WORKFLOW.md`](docs/DEV_WORKFLOW.md): FEATURE／BUGFIX logs → implement → user **ok** → commit／push／PR.
+3. Package for Moodle upload **only** with `tar.exe` (`DEV_WORKFLOW.md` §4). Never `Compress-Archive`.
+4. Cursor users: project rules under `.cursor/rules/` apply automatically; others start from [`AGENTS.md`](AGENTS.md).
