@@ -1,0 +1,13 @@
+---
+description: When user asks why Moodle course grades/gradebook are empty or students missing, remind about gradebookroles
+alwaysApply: true
+---
+
+# Moodle 成績簿看不到學員／成績
+
+若使用者問「為什麼看不到課程學員成績／成績簿空白」，**先提醒**：
+
+1. **網站管理 → 成績 → 一般設定 → 列入成績的角色**（`gradebookroles`）
+2. 必須勾選所有期望出現在成績簿的角色（例如學員／學生）；未勾的角色不會出現在評分者報告、單一檢視等。
+
+次要再查：單一檢視需先選計分項目；外掛寫〔參〕後若成績簿仍空，見 `docs/BUGFIX_LOG.md` 的 `attendance_update_users_grade`（0.11.10）。

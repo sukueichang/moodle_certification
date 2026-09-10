@@ -9,8 +9,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026072901;
-$plugin->release   = '0.1.1';
+$plugin->version   = 2026090100;
+$plugin->release   = '0.12.10';
 $plugin->requires  = 2020060900; // Moodle 3.9+.
 $plugin->component = 'local_tm_certification';
 $plugin->maturity  = MATURITY_ALPHA;

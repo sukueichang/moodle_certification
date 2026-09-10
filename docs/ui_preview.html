@@ -1,0 +1,3424 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TM 檢定管理 · UI 預覽（統一）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+/* ==== from dashboard_preview_v3.html ==== */
+
+    :root {
+      --tm-blue: #005f7e;
+      --tm-blue-deep: #004a63;
+      --tm-green: #74b42a;
+      --bg: #eef2f4;
+      --surface: #ffffff;
+      --ink: #15252c;
+      --muted: #5c717a;
+      --line: #d7e1e6;
+      --valid: #1b7a3d;
+      --expired: #b42318;
+      --ended: #667985;
+      --warn-bg: #fff6e8;
+      --warn-ink: #9a5b00;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans TC", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+      font-size: 15px;
+    }
+    .chrome {
+      background: var(--tm-blue);
+      color: #fff;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .chrome strong { font-weight: 600; letter-spacing: 0.02em; }
+    .chrome span { opacity: 0.8; font-size: 0.85rem; }
+    .shell { max-width: 960px; margin: 0 auto; padding: 20px 16px 48px; }
+
+    /* Role switch — segmented control */
+    .roles {
+      display: inline-flex;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 20px;
+      gap: 2px;
+    }
+    .roles button {
+      border: 0;
+      background: transparent;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .roles button:hover { color: var(--ink); }
+    .roles button.active {
+      background: var(--tm-blue);
+      color: #fff;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Header strip — facts only */
+    .head {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 20px;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+    .head h1 {
+      margin: 0 0 8px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--tm-blue);
+    }
+    .head .facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .head .deadline {
+      margin-top: 8px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .head .deadline.urgent { color: var(--expired); font-weight: 600; }
+    .head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: #e4eef2;
+      color: var(--tm-blue);
+    }
+    .pill.ok { background: #e6f5ea; color: var(--valid); }
+    .pill.bad { background: #fdecea; color: var(--expired); }
+    .pill.dim { background: #eef1f3; color: var(--ended); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 14px;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      cursor: default;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--tm-blue); color: #fff; }
+    .btn-primary:hover { background: var(--tm-blue-deep); }
+    .btn-secondary { background: #fff; color: var(--tm-blue); border-color: var(--line); }
+    .btn-accent { background: var(--tm-green); color: #fff; }
+    .btn-warn { background: #fff; color: #c45c00; border-color: #f0c48a; }
+    .btn-sm { min-height: 32px; padding: 0 10px; font-size: 0.82rem; font-weight: 500; }
+
+    /* P10 cert batch preview */
+    .search-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      align-items: center;
+    }
+    .search-bar input[type="search"] {
+      flex: 1 1 220px;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+      background: #fff;
+    }
+    .search-bar .hint {
+      flex: 1 1 100%;
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    table.data th.check,
+    table.data td.check {
+      width: 40px;
+      text-align: center;
+    }
+    table.data tr.row-miss td {
+      background-color: #fff8f7;
+      background-image: linear-gradient(var(--line), var(--line));
+      background-size: 100% 1px;
+      background-position: left bottom;
+      background-repeat: no-repeat;
+    }
+    table.data tr.row-ok td {
+      background-color: #f7fcf8;
+      background-image: linear-gradient(var(--line), var(--line));
+      background-size: 100% 1px;
+      background-position: left bottom;
+      background-repeat: no-repeat;
+    }
+    .stack-gap { margin-top: 14px; }
+    .proposal-box {
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px dashed #9bb8c4;
+      background: #f4f9fb;
+      font-size: 0.88rem;
+      color: var(--ink);
+    }
+    .proposal-box strong { color: var(--tm-blue); }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    @media (max-width: 640px) {
+      .kpis { grid-template-columns: 1fr; }
+    }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .kpi .n {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--tm-blue);
+      line-height: 1.1;
+    }
+    .kpi .l { margin-top: 4px; font-size: 0.85rem; color: var(--muted); }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .panel > .ph {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .panel > .ph h2 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .panel > .pb { padding: 4px 0; }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px 16px;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .row:last-child { border-bottom: 0; }
+    .row .name { font-weight: 600; }
+    .row .sub {
+      margin-top: 3px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .row .ops { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+    @media (max-width: 720px) {
+      .row { grid-template-columns: 1fr; }
+      .row .ops { justify-content: flex-start; }
+    }
+
+    table.data {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.88rem;
+    }
+    table.data th,
+    table.data td {
+      text-align: left;
+      padding: 11px 16px;
+      border-bottom: 0;
+      vertical-align: middle;
+      background-color: var(--surface);
+      background-image: linear-gradient(var(--line), var(--line));
+      background-size: 100% 1px;
+      background-position: left bottom;
+      background-repeat: no-repeat;
+    }
+    table.data th {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    table.data tr:last-child td {
+      background-image: none;
+      border-bottom: 0;
+    }
+    table.data .ops { display: flex; flex-wrap: wrap; gap: 6px; }
+    table.data td { display: table-cell; }
+
+    .empty {
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .alert-slim {
+      margin: 0 16px 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: var(--warn-bg);
+      color: var(--warn-ink);
+      font-size: 0.88rem;
+      font-weight: 500;
+    }
+
+    .footer-note {
+      margin-top: 24px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+  
+/* ==== from roster_preview.html ==== */
+
+    :root {
+      --tm-blue: #005f7e;
+      --tm-blue-deep: #004a63;
+      --tm-green: #74b42a;
+      --bg: #eef2f4;
+      --surface: #ffffff;
+      --ink: #15252c;
+      --muted: #5c717a;
+      --line: #d7e1e6;
+      --valid: #1b7a3d;
+      --ended: #667985;
+      --danger: #b42318;
+      --warn-bg: #fff6e8;
+      --warn-ink: #9a5b00;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans TC", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+      font-size: 15px;
+    }
+    .chrome {
+      background: var(--tm-blue);
+      color: #fff;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .chrome strong { font-weight: 600; }
+    .chrome span { opacity: 0.8; font-size: 0.85rem; }
+    .shell { max-width: 960px; margin: 0 auto; padding: 20px 16px 48px; }
+
+    .roles {
+      display: inline-flex;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 16px;
+      gap: 2px;
+    }
+    .roles button {
+      border: 0;
+      background: transparent;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .roles button:hover { color: var(--ink); }
+    .roles button.active {
+      background: var(--tm-blue);
+      color: #fff;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .head {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 20px;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+    .head h1 {
+      margin: 0 0 6px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--tm-blue);
+    }
+    .facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: #e4eef2;
+      color: var(--tm-blue);
+    }
+    .pill.ok { background: #e6f5ea; color: var(--valid); }
+    .pill.dim { background: #eef1f3; color: var(--ended); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 14px;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      cursor: default;
+      text-decoration: none;
+      white-space: nowrap;
+      background: #fff;
+      color: var(--tm-blue);
+      border-color: var(--line);
+    }
+    .btn-primary { background: var(--tm-blue); color: #fff; border-color: var(--tm-blue); }
+    .btn-accent { background: var(--tm-green); color: #fff; border-color: var(--tm-green); }
+    .btn-danger {
+      background: #fff;
+      color: var(--danger);
+      border-color: #f0c4c0;
+      font-weight: 500;
+      min-height: 32px;
+      padding: 0 10px;
+      font-size: 0.82rem;
+    }
+    .btn-sm { min-height: 32px; padding: 0 10px; font-size: 0.82rem; font-weight: 500; }
+
+    .alert-slim {
+      margin-bottom: 14px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--warn-bg);
+      color: var(--warn-ink);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .ph {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .ph h2 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .ph .ops { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    table.data {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.9rem;
+    }
+    table.data th,
+    table.data td {
+      text-align: left;
+      padding: 12px 16px;
+      border-bottom: 0;
+      vertical-align: middle;
+      background-color: var(--surface);
+      background-image: linear-gradient(var(--line), var(--line));
+      background-size: 100% 1px;
+      background-position: left bottom;
+      background-repeat: no-repeat;
+    }
+    table.data th {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    table.data tr:last-child td {
+      background-image: none;
+    }
+    table.data .id {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--tm-blue);
+    }
+    table.data .muted { color: var(--muted); font-size: 0.85rem; }
+
+    /* P9 現場點名（名單內嵌） */
+    .rc-cell {
+      min-width: 220px;
+    }
+    .rc-cell .rc-status {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .rc-cell .rc-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+    .rc-toggle {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #f4f7f8;
+    }
+    .rc-toggle .rc-btn {
+      border: 0;
+      background: transparent;
+      padding: 5px 10px;
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: default;
+      min-height: 28px;
+    }
+    .rc-toggle .rc-btn + .rc-btn {
+      border-left: 1px solid var(--line);
+    }
+    .rc-toggle .rc-btn.on-present {
+      background: #e6f5ea;
+      color: var(--valid);
+    }
+    .rc-toggle .rc-btn.on-late {
+      background: #fff6e8;
+      color: var(--warn-ink);
+    }
+    .rc-toggle .rc-btn.on-absent {
+      background: #fdecea;
+      color: var(--danger);
+    }
+
+    /* P9 場次簽到 QR */
+    .qr-layout {
+      display: grid;
+      grid-template-columns: minmax(200px, 240px) 1fr;
+      gap: 20px;
+      padding: 20px 16px;
+      align-items: start;
+    }
+    @media (max-width: 720px) {
+      .qr-layout { grid-template-columns: 1fr; justify-items: center; }
+    }
+    .qr-frame {
+      width: 220px;
+      height: 220px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background:
+        repeating-linear-gradient(0deg, #15252c 0 8px, transparent 8px 16px),
+        repeating-linear-gradient(90deg, #15252c 0 8px, transparent 8px 16px);
+      background-size: 16px 16px;
+      background-color: #fff;
+      background-blend-mode: darken;
+      position: relative;
+    }
+    .qr-frame::after {
+      content: "QR";
+      position: absolute;
+      inset: 58px;
+      background: #fff;
+      border: 2px solid #15252c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--tm-blue);
+      font-size: 1.1rem;
+      letter-spacing: 0.06em;
+    }
+    .qr-meta h3 {
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+    }
+    .qr-meta p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .qr-meta .qr-url {
+      display: block;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.78rem;
+      word-break: break-all;
+      background: #f4f7f8;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+      color: var(--tm-blue);
+    }
+    .qr-meta .ops { display: flex; flex-wrap: wrap; gap: 6px; }
+    .checkin-card {
+      max-width: 420px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 28px 22px;
+      text-align: center;
+    }
+    .checkin-card h1 {
+      margin: 0 0 8px;
+      font-size: 1.35rem;
+    }
+    .checkin-card .lead {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .checkin-card .who {
+      margin: 14px 0 4px;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .checkin-card .when {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .checkin-card .big-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 16px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+    }
+    .checkin-card .big-pill.ok { background: #e6f5ea; color: var(--valid); }
+    .checkin-card .big-pill.late { background: #fff6e8; color: var(--warn-ink); }
+    .checkin-card .big-pill.bad { background: #fdecea; color: var(--danger); }
+    .checkin-card .big-pill.dim { background: #eef1f3; color: var(--ended); }
+
+    .empty {
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .empty strong {
+      display: block;
+      color: var(--ink);
+      font-size: 1rem;
+      margin-bottom: 6px;
+    }
+    .empty .btn { margin-top: 14px; }
+
+    /* Add page */
+    .mode-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 0;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-bottom: 0;
+      border-radius: 10px 10px 0 0;
+      padding: 0 8px;
+    }
+    .mode-tabs button {
+      border: 0;
+      background: transparent;
+      padding: 12px 16px;
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .mode-tabs button.active {
+      color: var(--tm-blue);
+      border-bottom-color: var(--tm-blue);
+    }
+    .add-panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 0 0 10px 10px;
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+    .add-mode { display: none; }
+    .add-mode.active { display: block; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 16px;
+      max-width: 560px;
+    }
+    .form-grid .full { grid-template-columns: 1fr; grid-column: 1 / -1; }
+    @media (max-width: 640px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+    label.field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    label.field span.req { color: var(--danger); font-weight: 500; }
+    label.field input {
+      min-height: 40px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+      font-weight: 400;
+      background: #fff;
+    }
+    .form-actions {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .drop {
+      border: 1.5px dashed #b7c9d1;
+      border-radius: 10px;
+      padding: 28px 16px;
+      text-align: center;
+      background: #f7fafb;
+      color: var(--muted);
+      max-width: 560px;
+    }
+    .drop strong {
+      display: block;
+      color: var(--ink);
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+    .drop .hint { font-size: 0.82rem; margin-top: 4px; }
+    .drop .btn { margin-top: 12px; cursor: default; }
+
+    .hint-line {
+      margin: 0 0 14px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      max-width: 560px;
+    }
+
+    .preview-box {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      max-width: 720px;
+    }
+    .preview-box .ph { background: #f7fafb; }
+    .preview-sum {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .footer-note {
+      margin-top: 24px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+    .footer-note ul { margin: 8px 0 0; padding-left: 1.2em; }
+  
+/* ==== from scores_preview.html ==== */
+
+    :root {
+      --tm-blue: #005f7e;
+      --tm-blue-deep: #004a63;
+      --tm-green: #74b42a;
+      --bg: #eef2f4;
+      --surface: #ffffff;
+      --ink: #15252c;
+      --muted: #5c717a;
+      --line: #d7e1e6;
+      --valid: #1b7a3d;
+      --fail: #b42318;
+      --ended: #667985;
+      --info-bg: #e8f3f7;
+      --info-ink: #005f7e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans TC", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+      font-size: 15px;
+    }
+    .chrome {
+      background: var(--tm-blue);
+      color: #fff;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .chrome strong { font-weight: 600; }
+    .chrome span { opacity: 0.8; font-size: 0.85rem; }
+    .shell { max-width: 960px; margin: 0 auto; padding: 20px 16px 48px; }
+
+    .roles {
+      display: inline-flex;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 16px;
+      gap: 2px;
+    }
+    .roles button {
+      border: 0;
+      background: transparent;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .roles button:hover { color: var(--ink); }
+    .roles button.active {
+      background: var(--tm-blue);
+      color: #fff;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .head {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 20px;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+    .head h1 {
+      margin: 0 0 6px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--tm-blue);
+    }
+    .facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: #e4eef2;
+      color: var(--tm-blue);
+      white-space: nowrap;
+    }
+    .pill.ok { background: #e6f5ea; color: var(--valid); }
+    .pill.bad { background: #fdecea; color: var(--fail); }
+    .pill.dim { background: #eef1f3; color: var(--ended); }
+    .pill.info { background: var(--info-bg); color: var(--info-ink); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 14px;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      cursor: default;
+      text-decoration: none;
+      white-space: nowrap;
+      background: #fff;
+      color: var(--tm-blue);
+      border-color: var(--line);
+    }
+    .btn-primary { background: var(--tm-blue); color: #fff; border-color: var(--tm-blue); }
+    .btn-sm { min-height: 32px; padding: 0 10px; font-size: 0.82rem; font-weight: 500; }
+
+    .hint {
+      margin: 0 0 14px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--info-bg);
+      color: var(--info-ink);
+      font-size: 0.88rem;
+      font-weight: 500;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .ph {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .ph h2 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .ph .sub {
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    table.data {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    table.data th,
+    table.data td {
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+    }
+    table.data th {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    table.data tr:last-child td { border-bottom: 0; }
+    table.data .name { font-weight: 600; }
+    table.data .id {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--tm-blue);
+    }
+    table.data .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    table.data th.num { text-align: right; }
+
+    .score-input {
+      width: 72px;
+      min-height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      background: #fff;
+    }
+    .score-input:focus {
+      outline: 2px solid rgba(0, 95, 126, 0.25);
+      border-color: var(--tm-blue);
+    }
+
+    .foot {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-top: 1px solid var(--line);
+      background: #f7fafb;
+    }
+    .foot .ops { display: flex; flex-wrap: wrap; gap: 8px; }
+    .foot .note { font-size: 0.82rem; color: var(--muted); }
+
+    .empty {
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .empty strong {
+      display: block;
+      color: var(--ink);
+      font-size: 1rem;
+      margin-bottom: 6px;
+    }
+    .empty .btn { margin-top: 14px; }
+
+    .footer-note {
+      margin-top: 24px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+    .footer-note ul { margin: 8px 0 0; padding-left: 1.2em; }
+
+    @media (max-width: 720px) {
+      table.data { font-size: 0.85rem; }
+      table.data th:nth-child(2),
+      table.data td:nth-child(2) { display: none; }
+    }
+  
+/* ==== from cert_apply_preview.html ==== */
+
+    :root {
+      --tm-blue: #005f7e;
+      --tm-blue-deep: #004a63;
+      --tm-green: #74b42a;
+      --bg: #eef2f4;
+      --surface: #ffffff;
+      --ink: #15252c;
+      --muted: #5c717a;
+      --line: #d7e1e6;
+      --valid: #1b7a3d;
+      --fail: #b42318;
+      --ended: #667985;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans TC", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+      font-size: 15px;
+    }
+    .chrome {
+      background: var(--tm-blue);
+      color: #fff;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .chrome strong { font-weight: 600; }
+    .chrome span { opacity: 0.8; font-size: 0.85rem; }
+    .shell { max-width: 960px; margin: 0 auto; padding: 20px 16px 48px; }
+
+    .roles {
+      display: inline-flex;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 16px;
+      gap: 2px;
+      flex-wrap: wrap;
+    }
+    .roles button {
+      border: 0;
+      background: transparent;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .roles button:hover { color: var(--ink); }
+    .roles button.active { background: var(--tm-blue); color: #fff; }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .head {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+    }
+    .head h1 {
+      margin: 0 0 6px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--tm-blue);
+    }
+    .head .sub { margin: 0; font-size: 0.88rem; color: var(--muted); }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .ph {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .ph h2 { margin: 0; font-size: 0.95rem; font-weight: 700; }
+    .pb { padding: 16px; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: #e4eef2;
+      color: var(--tm-blue);
+    }
+    .pill.ok { background: #e6f5ea; color: var(--valid); }
+    .pill.bad { background: #fdecea; color: var(--fail); }
+    .pill.dim { background: #eef1f3; color: var(--ended); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 14px;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--tm-blue);
+      cursor: default;
+    }
+    .btn-primary { background: var(--tm-blue); color: #fff; border-color: var(--tm-blue); }
+    .btn-sm { min-height: 32px; padding: 0 10px; font-size: 0.82rem; font-weight: 500; }
+
+    /* Admin instructor cards */
+    .person {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .person-h {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+    .person-h .name { font-weight: 700; font-size: 1rem; }
+    .person-h .email { color: var(--muted); font-size: 0.85rem; }
+
+    .level-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 14px 16px;
+    }
+    @media (max-width: 800px) {
+      .level-grid { grid-template-columns: 1fr; }
+    }
+    .level-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #f7fafb;
+    }
+    .level-card.off { opacity: 0.55; }
+    .level-card .lv-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .level-card .lv-name { font-weight: 700; }
+    .level-card label.chk {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .field:last-child { margin-bottom: 0; }
+    .field span {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .field input[type="date"],
+    .field input[type="text"],
+    .field select,
+    .field textarea {
+      min-height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+      background: #fff;
+    }
+    .field textarea { min-height: 80px; padding: 8px 10px; resize: vertical; }
+    .person-foot {
+      padding: 12px 16px;
+      border-top: 1px solid var(--line);
+      background: #f7fafb;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* My certificates — per level rows */
+    .cert-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px 16px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      align-items: start;
+    }
+    .cert-row:last-child { border-bottom: 0; }
+    .cert-row .title { font-weight: 700; margin-bottom: 6px; }
+    .cert-row .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .cert-row .meta b { color: var(--ink); font-weight: 600; }
+
+    /* Apply page — two blocks */
+    .block-stack { display: flex; flex-direction: column; gap: 14px; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 16px;
+    }
+    .form-grid .full { grid-column: 1 / -1; }
+    @media (max-width: 640px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+    .drop {
+      border: 1.5px dashed #b7c9d1;
+      border-radius: 10px;
+      padding: 24px 16px;
+      text-align: center;
+      background: #f7fafb;
+      color: var(--muted);
+    }
+    .drop strong { display: block; color: var(--ink); margin-bottom: 4px; }
+    .hint-line { margin: 0 0 12px; font-size: 0.85rem; color: var(--muted); }
+    .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .footer-note {
+      margin-top: 24px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+    .footer-note ul { margin: 8px 0 0; padding-left: 1.2em; }
+    .strike { text-decoration: line-through; opacity: 0.55; }
+  
+
+    /* ==== unified shell ==== */
+    .topnav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 16px;
+      padding: 6px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .topnav button {
+      border: 0;
+      background: transparent;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .topnav button:hover { color: var(--ink); background: #f0f5f7; }
+    .topnav button.active {
+      background: var(--tm-blue);
+      color: #fff;
+    }
+    .sec[hidden] { display: none !important; }
+    .sec-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 10px;
+    }
+    .subnav { margin-bottom: 14px; }
+    .howto {
+      margin: 0 0 16px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #e8f3f7;
+      color: var(--tm-blue);
+      font-size: 0.88rem;
+    }
+
+    /* ==== Moodle 首頁注入區塊（v4 提案）==== */
+    .home-rail {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 860px) {
+      .home-rail { grid-template-columns: 1fr; }
+    }
+    .home-moodle-fake {
+      background: #f6f8f9;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+      min-height: 120px;
+    }
+    .home-moodle-fake .fake-bar {
+      height: 10px;
+      border-radius: 4px;
+      background: #dde6ea;
+      margin-bottom: 10px;
+      max-width: 55%;
+    }
+    .home-moodle-fake .fake-bar.w2 { max-width: 78%; opacity: 0.7; }
+    .home-moodle-fake .fake-bar.w3 { max-width: 40%; opacity: 0.5; margin-bottom: 0; }
+    .home-moodle-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+
+    .home-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px 16px 14px;
+      box-shadow: 0 1px 0 rgba(21, 37, 44, 0.04);
+    }
+    .home-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .home-card h1 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--tm-blue);
+      letter-spacing: 0.01em;
+    }
+    .home-card .hello {
+      margin: 4px 0 0;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--ink);
+    }
+    .home-link-full {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-decoration: none;
+      white-space: nowrap;
+      padding: 4px 0;
+      border-bottom: 1px solid transparent;
+    }
+    .home-link-full:hover {
+      color: var(--tm-blue);
+      border-bottom-color: var(--tm-blue);
+    }
+
+    .home-kpis {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 12px 0 14px;
+    }
+    .home-kpi {
+      background: #f4f8fa;
+      border: 1px solid #e2ebef;
+      border-radius: 8px;
+      padding: 10px 10px 9px;
+      text-align: left;
+    }
+    .home-kpi .n {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--tm-blue);
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .home-kpi .n.warn { color: #c45c00; }
+    .home-kpi .l {
+      margin-top: 3px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+
+    .home-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0 4px;
+    }
+    .home-meta {
+      margin: 6px 0 0;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .home-meta.urgent {
+      color: var(--expired);
+      font-weight: 600;
+    }
+
+    .home-section-label {
+      margin: 12px 0 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .home-list {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+    .home-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+    .home-item:last-child { border-bottom: 0; }
+    .home-item .name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .home-item .sub {
+      margin-top: 2px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .home-item .ops {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      justify-content: flex-end;
+    }
+    .home-empty {
+      padding: 16px 12px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+      border: 1px dashed #c5d4db;
+      border-radius: 8px;
+      background: #fafcfd;
+    }
+
+    .home-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .home-actions .btn { min-height: 34px; font-size: 0.82rem; }
+
+    .proposal-box {
+      margin: 0 0 16px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1px solid #cfe0e8;
+      background: linear-gradient(180deg, #f7fbfd 0%, #eef5f8 100%);
+      font-size: 0.88rem;
+      color: var(--ink);
+    }
+    .proposal-box h3 {
+      margin: 0 0 8px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--tm-blue);
+    }
+    .proposal-box dl {
+      margin: 0;
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 6px 10px;
+    }
+    .proposal-box dt {
+      font-weight: 700;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    .proposal-box dd { margin: 0; }
+    .proposal-box ul {
+      margin: 8px 0 0;
+      padding-left: 1.15em;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .compare-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .compare-strip .tag {
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #e4eef2;
+      color: var(--tm-blue);
+    }
+    .compare-strip .tag.old {
+      background: #eef1f3;
+      color: var(--ended);
+      text-decoration: line-through;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="chrome">
+    <strong>Techman · 檢定管理 UI 預覽</strong>
+    <span>單一檔案 · 未來提案請追加於此（docs/ui_preview.html）</span>
+  </div>
+
+  <div class="shell">
+    <p class="howto">上方切換<strong>功能區</strong>（預設「首頁區塊」為 v4 提案）；區內再切身分／相關畫面。確認後再寫入外掛。</p>
+
+    <nav class="topnav" role="tablist" aria-label="功能區">
+      <button type="button" class="active" data-sec="home">首頁區塊</button>
+      <button type="button" data-sec="dash">儀表板</button>
+      <button type="button" data-sec="roster">學員名單</button>
+      <button type="button" data-sec="scores">輸入成績</button>
+      <button type="button" data-sec="cert">證書／申請開課</button>
+    </nav>
+
+
+    <!-- ========== 首頁注入區塊 v4 ========== -->
+    <section class="sec" id="sec-home">
+      <div class="sec-title">Moodle 網站首頁／我的首頁 · 注入區塊（v4 提案）</div>
+
+      <div class="proposal-box">
+        <h3>標題用詞（三角色相同）</h3>
+        <dl>
+          <dt>zh_tw</dt>
+          <dd><strong>AI協作型機械手臂能力檢定</strong></dd>
+          <dt>en</dt>
+          <dd><strong>AI Cobot Competency Certification</strong></dd>
+          <dt>zh_cn</dt>
+          <dd><strong>AI协作型机械手臂能力检定</strong></dd>
+        </dl>
+        <ul>
+          <li>管理<strong>不顯示</strong>「我的證書」；完整頁面改為次要文字連結，主按鈕改為角色任務。</li>
+          <li>首頁區塊承載 KPI／下一件事／快捷鈕；完整儀表板保留深度列表。</li>
+        </ul>
+      </div>
+
+      <div class="roles subnav" data-prefix="home" role="tablist" aria-label="切換身分預覽">
+        <button type="button" class="active" data-view="home-manage">管理</button>
+        <button type="button" data-view="home-instruct">講師</button>
+        <button type="button" data-view="home-examinee">學員</button>
+      </div>
+
+      <!-- 管理 -->
+      <section id="view-home-manage" class="view active">
+        <div class="compare-strip">
+          <span class="tag old">舊：檢定管理中心</span>
+          <span class="tag">新：AI協作型機械手臂能力檢定</span>
+          <span class="tag">無「我的證書」</span>
+        </div>
+        <div class="home-rail">
+          <div>
+            <p class="home-moodle-label">Moodle 首頁內容區（示意）</p>
+            <div class="home-moodle-fake" aria-hidden="true">
+              <div class="fake-bar"></div>
+              <div class="fake-bar w2"></div>
+              <div class="fake-bar w3"></div>
+            </div>
+          </div>
+          <div>
+            <p class="home-moodle-label">注入區塊</p>
+            <article class="home-card" aria-label="AI協作型機械手臂能力檢定">
+              <div class="home-card-top">
+                <div>
+                  <h1>AI協作型機械手臂能力檢定</h1>
+                </div>
+                <a class="home-link-full" href="#sec-dash">完整儀表板 →</a>
+              </div>
+
+              <div class="home-kpis">
+                <div class="home-kpi">
+                  <div class="n warn">2</div>
+                  <div class="l">待審申請</div>
+                </div>
+                <div class="home-kpi">
+                  <div class="n">5</div>
+                  <div class="l">進行中場次</div>
+                </div>
+                <div class="home-kpi">
+                  <div class="n">36</div>
+                  <div class="l">本週學員</div>
+                </div>
+              </div>
+
+              <div class="home-section-label">待處理</div>
+              <div class="home-list">
+                <div class="home-item">
+                  <div>
+                    <div class="name">王老師 · [初級]</div>
+                    <div class="sub">7/30 16:07 · 台北 A · 名單 8 人</div>
+                  </div>
+                  <div class="ops">
+                    <span class="btn btn-accent btn-sm">核准</span>
+                  </div>
+                </div>
+                <div class="home-item">
+                  <div>
+                    <div class="name">李老師 · [中級]</div>
+                    <div class="sub">8/02 09:00 · 台中 B · 名單 12 人</div>
+                  </div>
+                  <div class="ops">
+                    <span class="btn btn-accent btn-sm">核准</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="home-actions">
+                <span class="btn btn-primary btn-sm">審核申請</span>
+                <span class="btn btn-secondary btn-sm">新增場次</span>
+                <span class="btn btn-secondary btn-sm">全部場次</span>
+              </div>
+            </article>
+          </div>
+        </div>
+        <div class="footer-note" style="margin-top:16px;border:0;padding-top:0;">
+          <strong>管理 · 為何這樣排</strong>
+          <ul>
+            <li><strong>資訊：</strong>待審數、進行中場次、本週學員（與完整儀表板 KPI 對齊）。</li>
+            <li><strong>列表：</strong>最多 2 筆待審，可直接核准（詳情／駁回仍在審核頁）。</li>
+            <li><strong>按鈕：</strong>審核申請／新增場次／全部場次；證書與講師等級授權不進首頁。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 講師 -->
+      <section id="view-home-instruct" class="view">
+        <div class="compare-strip">
+          <span class="tag old">舊：檢定管理中心</span>
+          <span class="tag">新：AI協作型機械手臂能力檢定</span>
+        </div>
+        <div class="home-rail">
+          <div>
+            <p class="home-moodle-label">Moodle 首頁內容區（示意）</p>
+            <div class="home-moodle-fake" aria-hidden="true">
+              <div class="fake-bar"></div>
+              <div class="fake-bar w2"></div>
+              <div class="fake-bar w3"></div>
+            </div>
+          </div>
+          <div>
+            <p class="home-moodle-label">注入區塊</p>
+            <article class="home-card" aria-label="AI協作型機械手臂能力檢定">
+              <div class="home-card-top">
+                <div>
+                  <h1>AI協作型機械手臂能力檢定</h1>
+                  <p class="hello">王老師，您好</p>
+                </div>
+                <a class="home-link-full" href="#sec-dash">完整儀表板 →</a>
+              </div>
+
+              <div class="home-facts">
+                <span class="pill">初級</span>
+                <span class="pill">中級</span>
+                <span class="pill ok">有效</span>
+              </div>
+              <p class="home-meta">更新效期期限：2027年 10月 13日</p>
+
+              <div class="home-section-label">下一場授課</div>
+              <div class="home-list">
+                <div class="home-item">
+                  <div>
+                    <div class="name">[初級]檢定課程</div>
+                    <div class="sub">8/15 09:00 · 台北 A · 12 人 · <span class="pill ok" style="margin-left:2px;">進行中</span></div>
+                  </div>
+                  <div class="ops">
+                    <span class="btn btn-primary btn-sm">輸入成績</span>
+                    <span class="btn btn-secondary btn-sm">名單</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="home-section-label">我的申請</div>
+              <div class="home-list">
+                <div class="home-item">
+                  <div>
+                    <div class="name">[高級]檢定課程</div>
+                    <div class="sub">8/22 13:00 · 高雄 C · <span class="pill">待審</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="home-actions">
+                <span class="btn btn-primary btn-sm">申請開課</span>
+                <span class="btn btn-secondary btn-sm">我的證書</span>
+              </div>
+            </article>
+          </div>
+        </div>
+        <div class="footer-note" style="margin-top:16px;border:0;padding-top:0;">
+          <strong>講師 · 為何這樣排</strong>
+          <ul>
+            <li><strong>資訊：</strong>認證等級＋效期（效期將屆／已過期改紅色警示）。</li>
+            <li><strong>下一場：</strong>直接「輸入成績」「名單」（臨時安插走名單頁）。</li>
+            <li><strong>按鈕：</strong>申請開課為主；保留我的證書（雙證書）。無審核／新增場次。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 學員 -->
+      <section id="view-home-examinee" class="view">
+        <div class="compare-strip">
+          <span class="tag old">舊：檢定管理中心</span>
+          <span class="tag">新：AI協作型機械手臂能力檢定</span>
+        </div>
+        <div class="home-rail">
+          <div>
+            <p class="home-moodle-label">Moodle 首頁內容區（示意）</p>
+            <div class="home-moodle-fake" aria-hidden="true">
+              <div class="fake-bar"></div>
+              <div class="fake-bar w2"></div>
+              <div class="fake-bar w3"></div>
+            </div>
+          </div>
+          <div>
+            <p class="home-moodle-label">注入區塊</p>
+            <article class="home-card" aria-label="AI協作型機械手臂能力檢定">
+              <div class="home-card-top">
+                <div>
+                  <h1>AI協作型機械手臂能力檢定</h1>
+                  <p class="hello">waylon su，您好</p>
+                </div>
+                <a class="home-link-full" href="#sec-dash">完整儀表板 →</a>
+              </div>
+
+              <div class="home-facts">
+                <span class="pill dim">尚無證書</span>
+                <span class="pill">考生編號 115069</span>
+              </div>
+
+              <div class="home-section-label">下一場考試</div>
+              <div class="home-list">
+                <div class="home-item">
+                  <div>
+                    <div class="name">[初級]檢定課程</div>
+                    <div class="sub">8/20 14:00 · 台北 A · 講師 王老師 · <span class="pill ok">進行中</span></div>
+                  </div>
+                  <div class="ops">
+                    <span class="btn btn-primary btn-sm">進入筆試</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="home-actions">
+                <span class="btn btn-secondary btn-sm">我的證書</span>
+                <span class="btn btn-secondary btn-sm">全部場次</span>
+              </div>
+            </article>
+          </div>
+        </div>
+        <div class="footer-note" style="margin-top:16px;border:0;padding-top:0;">
+          <strong>學員 · 為何這樣排</strong>
+          <ul>
+            <li><strong>資訊：</strong>檢定等級（或尚無）＋考生編號；無講師效期。</li>
+            <li><strong>下一場：</strong>時間／考場／講師；筆試可考時顯示「進入筆試」，否則灰態＋提示。</li>
+            <li><strong>按鈕：</strong>我的證書、全部場次；無申請開課／審核／術科輸入。</li>
+          </ul>
+        </div>
+      </section>
+    </section>
+
+
+    <section class="sec" id="sec-dash" hidden>
+      <div class="sec-title">儀表板 · 完整頁面（既有）</div>
+      <div class="roles subnav" data-prefix="dash" role="tablist" aria-label="切換身分預覽">
+      <button type="button" class="active" data-view="dash-manage">管理</button>
+      <button type="button" data-view="dash-instruct">講師</button>
+      <button type="button" data-view="dash-examinee">學員</button>
+    </div>
+
+    <!-- ========== 管理 ========== -->
+    <section id="view-dash-manage" class="view active">
+      <div class="head">
+        <div>
+          <h1>檢定管理中心</h1>
+          <div class="facts">
+            <span class="pill">待審 2</span>
+            <span class="pill">進行中場次 5</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-primary">新增場次</span>
+          <span class="btn btn-secondary">全部場次</span>
+          <span class="btn btn-secondary">我的證書</span>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="n">2</div><div class="l">待審申請</div></div>
+        <div class="kpi"><div class="n">5</div><div class="l">進行中場次</div></div>
+        <div class="kpi"><div class="n">36</div><div class="l">本週學員</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <h2>待審申請</h2>
+          <span class="btn btn-secondary btn-sm">全部</span>
+        </div>
+        <div class="pb" style="padding:0;">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>申請人</th>
+                <th>場次</th>
+                <th>名單</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>王老師</td>
+                <td>[初級]檢定課程<br><span style="color:var(--muted);font-size:0.85rem;">7/30 16:07 · 台北 A</span></td>
+                <td>8 人</td>
+                <td>
+                  <div class="ops">
+                    <span class="btn btn-secondary btn-sm">詳情</span>
+                    <span class="btn btn-accent btn-sm">核准</span>
+                    <span class="btn btn-secondary btn-sm">駁回</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>陳老師</td>
+                <td>[中級]檢定課程<br><span style="color:var(--muted);font-size:0.85rem;">8/05 13:00 · 台中 B</span></td>
+                <td>12 人</td>
+                <td>
+                  <div class="ops">
+                    <span class="btn btn-secondary btn-sm">詳情</span>
+                    <span class="btn btn-accent btn-sm">核准</span>
+                    <span class="btn btn-secondary btn-sm">駁回</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><h2>場次</h2></div>
+        <div class="pb">
+          <div class="row">
+            <div>
+              <div class="name">[初級]檢定課程</div>
+              <div class="sub">7/30 16:07 · 台北 A · 3 人 · <span class="pill ok">進行中</span></div>
+            </div>
+            <div class="ops">
+              <span class="btn btn-warn btn-sm">新增學員</span>
+              <span class="btn btn-secondary btn-sm">名單</span>
+              <span class="btn btn-secondary btn-sm">術科成績</span>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <div class="name">[初級]檢定課程</div>
+              <div class="sub">7/28 09:00 · 台北 A · 6 人 · <span class="pill dim">已結束</span></div>
+            </div>
+            <div class="ops">
+              <span class="btn btn-secondary btn-sm">名單</span>
+              <span class="btn btn-secondary btn-sm">術科成績</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 講師 ========== -->
+    <section id="view-dash-instruct" class="view">
+      <div class="head">
+        <div>
+          <h1>王老師，您好</h1>
+          <div class="facts">
+            <span class="pill">初級</span>
+            <span class="pill">中級</span>
+            <span class="pill ok">有效</span>
+          </div>
+          <div class="deadline">更新效期期限：2026 年 7 月 29 日</div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-primary">申請開課</span>
+          <span class="btn btn-secondary">我的證書</span>
+        </div>
+      </div>
+
+      <!-- 過期示意（切換註解即可預覽）
+      <div class="head">
+        <div>
+          <h1>王老師，您好</h1>
+          <div class="facts">
+            <span class="pill">初級</span>
+            <span class="pill bad">已過期</span>
+          </div>
+          <div class="deadline urgent">更新效期期限：需立即更新</div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-primary">申請開課</span>
+          <span class="btn btn-secondary">我的證書</span>
+        </div>
+      </div>
+      -->
+
+      <div class="panel">
+        <div class="ph"><h2>我的授課</h2></div>
+        <div class="pb">
+          <div class="row">
+            <div>
+              <div class="name">[初級]檢定課程</div>
+              <div class="sub">7/30 16:07 · 3 人 · <span class="pill ok">進行中</span></div>
+            </div>
+            <div class="ops">
+              <span class="btn btn-warn btn-sm">新增學員</span>
+              <span class="btn btn-secondary btn-sm">名單</span>
+              <span class="btn btn-primary btn-sm">輸入成績</span>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <div class="name">[初級]檢定課程</div>
+              <div class="sub">7/28 09:00 · 6 人 · <span class="pill dim">已結束</span></div>
+            </div>
+            <div class="ops">
+              <span class="btn btn-secondary btn-sm">名單</span>
+              <span class="btn btn-primary btn-sm">輸入成績</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><h2>我的申請</h2></div>
+        <div class="pb">
+          <div class="row">
+            <div>
+              <div class="name">[中級]檢定課程</div>
+              <div class="sub">8/05 13:00 · 台中 B · <span class="pill">審核中</span></div>
+            </div>
+            <div class="ops"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 學員 ========== -->
+    <section id="view-dash-examinee" class="view">
+      <div class="head">
+        <div>
+          <h1>王美，您好</h1>
+          <div class="facts">
+            <span class="pill">初級</span>
+            <span class="pill">115045</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-secondary">我的證書</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><h2>我的場次</h2></div>
+        <div class="pb">
+          <div class="row">
+            <div>
+              <div class="name">[初級]檢定課程</div>
+              <div class="sub">7/30 16:07 · 台北 A · 講師 王老師</div>
+            </div>
+            <div class="ops">
+              <span class="btn btn-primary btn-sm">進入筆試</span>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <div class="name">[初級]檢定課程</div>
+              <div class="sub">6/12 09:00 · 已結束</div>
+            </div>
+            <div class="ops">
+              <span class="btn btn-secondary btn-sm">下載證書</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><h2>我的證書</h2></div>
+        <div class="pb">
+          <div class="row">
+            <div>
+              <div class="name">初級檢定證書</div>
+              <div class="sub">可下載 · 課程【初級檢定】</div>
+            </div>
+            <div class="ops">
+              <span class="btn btn-primary btn-sm">下載</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer-note">
+      設計原則：去掉「視圖說明」長文；封面只留姓名、等級／編號、效期一行；場次列＝名稱＋時間＋人數＋狀態＋動作。
+      標題：檢定管理中心。已對應外掛 0.6.5。
+    </p>
+    </section>
+
+
+    <section class="sec" id="sec-roster" hidden>
+      <div class="sec-title">學員名單 · P9 現場點名＋場次簽到 QR／P10 通過與證書</div>
+      <div class="roles subnav" data-prefix="roster" role="tablist" aria-label="切換頁面預覽">
+      <button type="button" class="active" data-view="roster-rollcall">名單（現場點名）</button>
+      <button type="button" data-view="roster-qr">講師：本場簽到 QR</button>
+      <button type="button" data-view="roster-checkin-present">學生：簽到＝到課</button>
+      <button type="button" data-view="roster-checkin-late">學生：簽到＝遲到</button>
+      <button type="button" data-view="roster-checkin-closed">學生：場次已結束</button>
+      <button type="button" data-view="roster-checkin-other">學生：其他狀態</button>
+      <button type="button" data-view="roster-list">名單（通過＋單一下載）</button>
+      <button type="button" data-view="roster-cert-session">批次：本場通過者</button>
+      <button type="button" data-view="roster-cert-search">儀表板：全站批次下載</button>
+      <button type="button" data-view="roster-add">新增學員</button>
+      <button type="button" data-view="roster-empty">名單（空）</button>
+      <button type="button" data-view="roster-ended">已結束場次</button>
+    </div>
+
+    <!-- ========== 名單（P9 現場點名內嵌） ========== -->
+    <section id="view-roster-rollcall" class="view active">
+      <div class="proposal-box">
+        <strong>P9 定案提案：</strong>名單內嵌「現場點名」欄（講師可手動改）。
+        另提供<strong>本場簽到 QR</strong>：學生須先登入 Moodle；開場前掃＝到課、開場後至結束＝遲到、結束後關閉。
+        系統依時間判斷；講師可後台覆寫。與課程出缺席無關。
+      </div>
+      <div class="head">
+        <div>
+          <h1>[初級]檢定課程</h1>
+          <div class="facts">
+            <span class="pill">初級</span>
+            <span class="pill">今日 09:30–12:30</span>
+            <span class="pill">台北 A</span>
+            <span class="pill">4 人</span>
+            <span class="pill ok">進行中</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-primary">新增學員</span>
+          <span class="btn btn-secondary">輸入成績</span>
+          <span class="btn btn-secondary">本場簽到 QR</span>
+          <span class="btn btn-secondary">本場證書下載</span>
+          <span class="btn btn-secondary">返回</span>
+        </div>
+      </div>
+
+      <div class="alert-slim" style="margin-bottom:12px;">
+        現場點名＝到課確認，不會寫入 Moodle 出缺席。學生可掃「本場簽到 QR」自簽；講師仍可在此欄手動變更。
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <h2>學員名單</h2>
+          <div class="ops">
+            <span class="pill ok">到課 1</span>
+            <span class="pill" style="background:#fff6e8;color:#9a5b00;">遲到 1</span>
+            <span class="pill bad">未到 1</span>
+            <span class="pill dim">未點名 1</span>
+            <span class="btn btn-sm btn-secondary">本場簽到 QR</span>
+            <span class="btn btn-sm btn-secondary">全部標到課</span>
+            <span class="btn btn-sm btn-secondary">下載登入名單</span>
+            <span class="btn btn-sm btn-primary">本場證書下載</span>
+          </div>
+        </div>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>考生編號</th>
+              <th>Email</th>
+              <th>現場點名</th>
+              <th>通過</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>王美</td>
+              <td class="id">115045</td>
+              <td class="muted">mei.wang@example.com</td>
+              <td class="rc-cell">
+                <div class="rc-status">
+                  <div class="rc-toggle" role="group" aria-label="王美現場點名">
+                    <span class="rc-btn on-present">到課</span>
+                    <span class="rc-btn">遲到</span>
+                    <span class="rc-btn">未到</span>
+                  </div>
+                  <span class="rc-meta">09:12 · 學生自簽</span>
+                </div>
+              </td>
+              <td><span class="pill ok">通過</span></td>
+              <td><div class="ops">
+                <span class="btn btn-sm btn-primary">下載證書</span>
+                <span class="btn btn-sm btn-danger">移除</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td>李強</td>
+              <td class="id">115046</td>
+              <td class="muted">qiang.li@example.com</td>
+              <td class="rc-cell">
+                <div class="rc-status">
+                  <div class="rc-toggle" role="group" aria-label="李強現場點名">
+                    <span class="rc-btn">到課</span>
+                    <span class="rc-btn on-late">遲到</span>
+                    <span class="rc-btn">未到</span>
+                  </div>
+                  <span class="rc-meta">09:48 · 學生自簽</span>
+                </div>
+              </td>
+              <td><span class="pill bad">未通過</span></td>
+              <td><div class="ops">
+                <span class="btn btn-sm btn-danger">移除</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td>陳雅婷</td>
+              <td class="id">115047</td>
+              <td class="muted">yating.chen@example.com</td>
+              <td class="rc-cell">
+                <div class="rc-status">
+                  <div class="rc-toggle" role="group" aria-label="陳雅婷現場點名">
+                    <span class="rc-btn">到課</span>
+                    <span class="rc-btn">遲到</span>
+                    <span class="rc-btn on-absent">未到</span>
+                  </div>
+                  <span class="rc-meta">12:05 · 王老師</span>
+                </div>
+              </td>
+              <td><span class="pill dim">未判定</span></td>
+              <td><div class="ops">
+                <span class="btn btn-sm btn-danger">移除</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td>林小華</td>
+              <td class="id">114802</td>
+              <td class="muted">hua@example.com</td>
+              <td class="rc-cell">
+                <div class="rc-status">
+                  <div class="rc-toggle" role="group" aria-label="林小華現場點名">
+                    <span class="rc-btn">到課</span>
+                    <span class="rc-btn">遲到</span>
+                    <span class="rc-btn">未到</span>
+                  </div>
+                  <span class="rc-meta">未點名</span>
+                </div>
+              </td>
+              <td><span class="pill ok">通過</span></td>
+              <td><div class="ops">
+                <span class="btn btn-sm btn-primary">下載證書</span>
+                <span class="btn btn-sm btn-danger">移除</span>
+              </div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== 講師：本場簽到 QR ========== -->
+    <section id="view-roster-qr" class="view">
+      <div class="proposal-box">
+        <strong>講師端：</strong>在名單產生／顯示本場專屬簽到 QR（可投影或列印）。
+        無最早開放時間；學生隨時可掃，但狀態依場次時間自動判定。結束後 QR 仍可開但提交會被拒。
+      </div>
+      <div class="head">
+        <div>
+          <h1>本場簽到 QR</h1>
+          <div class="facts">
+            <span class="pill">[初級]檢定課程</span>
+            <span class="pill">今日 09:30–12:30</span>
+            <span class="pill ok">簽到開放中</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-secondary">返回名單</span>
+        </div>
+      </div>
+
+      <div class="alert-slim" style="margin-bottom:12px;">
+        規則：開場前掃＝到課；開場後至結束＝遲到；場次結束後＝關閉自簽。須先登入 Moodle（課前發帳密）。
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <h2>给学生掃描</h2>
+          <div class="ops">
+            <span class="pill">到課門檻 09:30</span>
+            <span class="pill">關閉 12:30</span>
+          </div>
+        </div>
+        <div class="qr-layout">
+          <div class="qr-frame" aria-hidden="true"></div>
+          <div class="qr-meta">
+            <h3>掃碼後請先登入，再確認簽到</h3>
+            <p>此 QR 僅限本場次。建議投影在教室或印成紙本置於入口。</p>
+            <span class="qr-url">https://moodle.example/local/tm_certification/checkin.php?sessionid=42&amp;t=…</span>
+            <div class="ops">
+              <span class="btn btn-primary btn-sm">列印／下載 QR</span>
+              <span class="btn btn-secondary btn-sm">複製連結</span>
+              <span class="btn btn-secondary btn-sm">重新產生</span>
+            </div>
+            <p style="margin-top:14px;margin-bottom:0;font-size:0.82rem;">
+              「重新產生」會作廢舊連結（舊 QR 失效），適合連結外流時使用。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 學生：簽到＝到課 ========== -->
+    <section id="view-roster-checkin-present" class="view">
+      <div class="proposal-box">
+        <strong>學生端（開場前）：</strong>已登入且在名冊 → 一鍵確認 → 系統記<strong>到課</strong>＋當下時間。不需再選名字。
+      </div>
+      <div class="checkin-card">
+        <h1>本場簽到</h1>
+        <p class="lead">[初級]檢定課程 · 今日 09:30–12:30 · 台北 A</p>
+        <div class="big-pill ok">將記為：到課</div>
+        <p class="lead" style="margin-bottom:8px;">現在 09:12（開場前）</p>
+        <div class="who">王美</div>
+        <div class="when">考生編號 115045 · 已登入</div>
+        <span class="btn btn-primary">確認簽到</span>
+      </div>
+      <div class="checkin-card" style="margin-top:14px;">
+        <div class="big-pill ok">簽到完成</div>
+        <div class="who">王美</div>
+        <div class="when">到課 · 09:12</div>
+        <p class="lead">可關閉此頁，專心上課。</p>
+      </div>
+    </section>
+
+    <!-- ========== 學生：簽到＝遲到 ========== -->
+    <section id="view-roster-checkin-late" class="view">
+      <div class="proposal-box">
+        <strong>學生端（開場後～結束前）：</strong>同樣一鍵確認，系統自動記<strong>遲到</strong>。講師之後仍可在名單改成到課／未到。
+      </div>
+      <div class="checkin-card">
+        <h1>本場簽到</h1>
+        <p class="lead">[初級]檢定課程 · 今日 09:30–12:30 · 台北 A</p>
+        <div class="big-pill late">將記為：遲到</div>
+        <p class="lead" style="margin-bottom:8px;">現在 09:48（已過開場）</p>
+        <div class="who">李強</div>
+        <div class="when">考生編號 115046 · 已登入</div>
+        <span class="btn btn-primary">確認簽到</span>
+      </div>
+    </section>
+
+    <!-- ========== 學生：場次已結束 ========== -->
+    <section id="view-roster-checkin-closed" class="view">
+      <div class="proposal-box">
+        <strong>場次結束後：</strong>自簽關閉。請改由講師在名單手動補登。
+      </div>
+      <div class="checkin-card">
+        <h1>本場簽到</h1>
+        <p class="lead">[初級]檢定課程 · 今日 09:30–12:30</p>
+        <div class="big-pill dim">自簽已關閉</div>
+        <p class="lead">場次已結束（12:30）。若需補登，請洽講師於名單手動點名。</p>
+      </div>
+    </section>
+
+    <!-- ========== 學生：其他狀態 ========== -->
+    <section id="view-roster-checkin-other" class="view">
+      <div class="proposal-box">
+        <strong>其他狀態：</strong>未登入須先導向 Moodle 登入；非本場名冊拒絕；已簽過顯示結果不重複洗時間（除非講師後台改過後再開？本階段建議：已簽過僅顯示，不覆寫）。
+      </div>
+
+      <div class="checkin-card" style="margin-bottom:14px;">
+        <h1>本場簽到</h1>
+        <div class="big-pill dim">需要登入</div>
+        <p class="lead">請先以課前取得的帳號密碼登入 Moodle，再回到此頁完成簽到。</p>
+        <span class="btn btn-primary">前往登入</span>
+      </div>
+
+      <div class="checkin-card" style="margin-bottom:14px;">
+        <h1>本場簽到</h1>
+        <div class="big-pill bad">不在本場名冊</div>
+        <div class="who">訪客帳號</div>
+        <p class="lead">目前登入身分不在本場學員名單。請確認帳號，或洽講師加入名冊。</p>
+      </div>
+
+      <div class="checkin-card">
+        <h1>本場簽到</h1>
+        <div class="big-pill ok">已簽到</div>
+        <div class="who">王美</div>
+        <div class="when">到課 · 09:12</div>
+        <p class="lead">無需再次簽到。若狀態有誤，請洽講師於名單修改。</p>
+      </div>
+    </section>
+
+    <!-- ========== 名單（通過＋單一下載） ========== -->
+    <section id="view-roster-list" class="view">
+      <div class="proposal-box">
+        <strong>P10 名單列：</strong>顯示本場通過狀態；已通過才有「下載證書」。
+        場次內僅「本場證書下載」。全站搜尋批次在<strong>檢定儀表板</strong>（管理／審核）獨立按鈕。
+        （現場點名見「名單（現場點名）」分頁。）
+      </div>
+      <div class="head">
+        <div>
+          <h1>[初級]檢定課程</h1>
+          <div class="facts">
+            <span class="pill">初級</span>
+            <span class="pill">7/30 16:07</span>
+            <span class="pill">台北 A</span>
+            <span class="pill">4 人</span>
+            <span class="pill ok">進行中</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-primary">新增學員</span>
+          <span class="btn btn-secondary">輸入成績</span>
+          <span class="btn btn-secondary">證書批次下載</span>
+          <span class="btn btn-secondary">返回</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <h2>學員名單</h2>
+          <div class="ops">
+            <span class="btn btn-sm btn-secondary">下載登入名單</span>
+            <span class="btn btn-sm btn-primary">證書批次下載</span>
+          </div>
+        </div>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>考生編號</th>
+              <th>Email</th>
+              <th>單位</th>
+              <th>通過</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>王美</td>
+              <td class="id">115045</td>
+              <td class="muted">mei.wang@example.com</td>
+              <td>台中高工</td>
+              <td><span class="pill ok">通過</span></td>
+              <td><div class="ops">
+                <span class="btn btn-sm btn-primary">下載證書</span>
+                <span class="btn btn-sm btn-danger">移除</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td>李強</td>
+              <td class="id">115046</td>
+              <td class="muted">qiang.li@example.com</td>
+              <td>台北科大</td>
+              <td><span class="pill bad">未通過</span></td>
+              <td><div class="ops">
+                <span class="btn btn-sm btn-danger">移除</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td>陳雅婷</td>
+              <td class="id">115047</td>
+              <td class="muted">yating.chen@example.com</td>
+              <td>—</td>
+              <td><span class="pill dim">未判定</span></td>
+              <td><div class="ops">
+                <span class="btn btn-sm btn-danger">移除</span>
+              </div></td>
+            </tr>
+            <tr>
+              <td>林小華</td>
+              <td class="id">114802</td>
+              <td class="muted">hua@example.com</td>
+              <td>中科院</td>
+              <td><span class="pill ok">通過</span></td>
+              <td><div class="ops">
+                <span class="btn btn-sm btn-primary">下載證書</span>
+                <span class="btn btn-sm btn-danger">移除</span>
+              </div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== 批次：本場通過者 ========== -->
+    <section id="view-roster-cert-session" class="view">
+      <div class="proposal-box">
+        <strong>用法 1：</strong>帶入本場「已通過」學員 → 摘要顯示 Moodle 證書可否領／已核發 →
+        確認後打包 <strong>一個 zip（多份 PDF）</strong>；沒證書的人標紅，<strong>不擋整批</strong>，只下載有的。
+      </div>
+      <div class="head">
+        <div>
+          <h1>證書批次下載</h1>
+          <div class="facts">
+            <span class="pill">本場通過者</span>
+            <span class="pill">[初級]檢定課程</span>
+            <span class="pill">進行中亦可</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-secondary">返回名單</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <h2>本場已通過</h2>
+          <div class="ops">
+            <span class="pill">帶入 2 人</span>
+          </div>
+        </div>
+        <table class="data">
+          <thead>
+            <tr>
+              <th class="check"><input type="checkbox" checked disabled aria-label="全選示意" /></th>
+              <th>姓名</th>
+              <th>考生編號</th>
+              <th>Email</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="check"><input type="checkbox" checked disabled /></td>
+              <td>王美</td>
+              <td class="id">115045</td>
+              <td class="muted">mei.wang@example.com</td>
+            </tr>
+            <tr>
+              <td class="check"><input type="checkbox" checked disabled /></td>
+              <td>林小華</td>
+              <td class="id">114802</td>
+              <td class="muted">hua@example.com</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="ph" style="border-top:1px solid var(--line); border-bottom:0;">
+          <span class="muted" style="font-size:0.85rem;">可取消勾選後再產生摘要</span>
+          <span class="btn btn-sm btn-primary">產生下載摘要</span>
+        </div>
+      </div>
+
+      <div class="panel stack-gap">
+        <div class="ph">
+          <h2>下載前摘要</h2>
+          <div class="ops">
+            <span class="pill ok">可下載 1</span>
+            <span class="pill bad">無證書 1</span>
+          </div>
+        </div>
+        <p class="hint-line" style="padding:10px 16px; margin:0; border-bottom:1px solid var(--line);">
+          「有證書」＝ Moodle customcert <strong>已核發或可領取</strong>。確認後只打包可下載者為 zip。
+        </p>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>考生編號</th>
+              <th>通過</th>
+              <th>Moodle 證書</th>
+              <th>結果</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="row-ok">
+              <td>王美</td>
+              <td class="id">115045</td>
+              <td><span class="pill ok">通過</span></td>
+              <td><span class="pill ok">可領取</span></td>
+              <td>將納入 zip</td>
+            </tr>
+            <tr class="row-miss">
+              <td>林小華</td>
+              <td class="id">114802</td>
+              <td><span class="pill ok">通過</span></td>
+              <td><span class="pill bad">尚無可領／未核發</span></td>
+              <td>略過（不擋整批）</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="ph" style="border-top:1px solid var(--line); border-bottom:0;">
+          <span class="muted" style="font-size:0.85rem;">檔名示意：cert_session123_初級.zip</span>
+          <span class="btn btn-accent">確認下載 zip（1 份 PDF）</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 批次：搜尋全站 ========== -->
+    <section id="view-roster-cert-search" class="view">
+      <div class="proposal-box">
+        <strong>用法 2（儀表板獨立頁）：</strong>管理／審核從檢定儀表板進入；選等級 → 搜尋按「加入」→
+        <strong>預計下載名單</strong>可跨關鍵字累積 → 摘要 → zip。不依附任一場次。
+      </div>
+      <div class="head">
+        <div>
+          <h1>證書批次下載</h1>
+          <div class="facts">
+            <span class="pill">儀表板入口</span>
+            <span class="pill">搜尋全站</span>
+            <span class="pill">等級：初級</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-secondary">返回儀表板</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><h2>搜尋並挑選</h2></div>
+        <div class="search-bar">
+          <input type="search" value="王" readonly aria-label="搜尋" />
+          <span class="btn btn-sm btn-primary">搜尋</span>
+          <p class="hint">Email／考生編號／姓名；全站考生。按「加入」進入下方「預計下載名單」；可換關鍵字再搜，已選不會被清空。</p>
+        </div>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>考生編號</th>
+              <th>Email</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>王美</td>
+              <td class="id">115045</td>
+              <td class="muted">mei.wang@example.com</td>
+              <td class="muted">已加入預計名單</td>
+            </tr>
+            <tr>
+              <td>王大明</td>
+              <td class="id">113210</td>
+              <td class="muted">daming.wang@example.com</td>
+              <td><span class="btn btn-sm btn-secondary">加入</span></td>
+            </tr>
+            <tr>
+              <td>王小花</td>
+              <td class="id">112001</td>
+              <td class="muted">flower.wang@example.com</td>
+              <td><span class="btn btn-sm btn-secondary">加入</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="ph" style="border-top:1px solid var(--line); border-bottom:0;">
+          <span class="muted" style="font-size:0.85rem;">示意：下一輪改搜「林」可再按加入，預計名單繼續累加</span>
+        </div>
+      </div>
+
+      <div class="panel stack-gap">
+        <div class="ph">
+          <h2>預計下載名單</h2>
+          <div class="ops">
+            <span class="pill">已選 3 人</span>
+            <span class="btn btn-sm btn-secondary">清空</span>
+          </div>
+        </div>
+        <p class="hint-line" style="padding:10px 16px; margin:0; border-bottom:1px solid var(--line);">
+          來自多次搜尋的累積結果；可個別移除。就緒後再產生摘要。
+        </p>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>考生編號</th>
+              <th>Email</th>
+              <th>來源搜尋</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>王美</td>
+              <td class="id">115045</td>
+              <td class="muted">mei.wang@example.com</td>
+              <td class="muted">王</td>
+              <td><span class="btn btn-sm btn-danger">移除</span></td>
+            </tr>
+            <tr>
+              <td>王大明</td>
+              <td class="id">113210</td>
+              <td class="muted">daming.wang@example.com</td>
+              <td class="muted">王</td>
+              <td><span class="btn btn-sm btn-danger">移除</span></td>
+            </tr>
+            <tr>
+              <td>林小華</td>
+              <td class="id">114802</td>
+              <td class="muted">hua@example.com</td>
+              <td class="muted">林</td>
+              <td><span class="btn btn-sm btn-danger">移除</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="ph" style="border-top:1px solid var(--line); border-bottom:0;">
+          <span class="pill">已選 3 人</span>
+          <span class="btn btn-sm btn-primary">產生下載摘要</span>
+        </div>
+      </div>
+
+      <div class="panel stack-gap">
+        <div class="ph">
+          <h2>下載前摘要</h2>
+          <div class="ops">
+            <span class="pill ok">可下載 2</span>
+            <span class="pill bad">無證書 1</span>
+          </div>
+        </div>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>考生編號</th>
+              <th>Moodle 證書（初級）</th>
+              <th>結果</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="row-ok">
+              <td>王美</td>
+              <td class="id">115045</td>
+              <td><span class="pill ok">已核發</span></td>
+              <td>將納入 zip</td>
+            </tr>
+            <tr class="row-miss">
+              <td>王大明</td>
+              <td class="id">113210</td>
+              <td><span class="pill bad">無可領證書</span></td>
+              <td>略過（不擋整批）</td>
+            </tr>
+            <tr class="row-ok">
+              <td>林小華</td>
+              <td class="id">114802</td>
+              <td><span class="pill ok">可領取</span></td>
+              <td>將納入 zip</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="ph" style="border-top:1px solid var(--line); border-bottom:0;">
+          <span class="muted" style="font-size:0.85rem;">zip 內檔名示意：115045_王美.pdf …</span>
+          <span class="btn btn-accent">確認下載 zip（2 份 PDF）</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 新增學員 ========== -->
+    <section id="view-roster-add" class="view">
+      <div class="head">
+        <div>
+          <h1>新增學員</h1>
+          <div class="facts">
+            <span class="pill">[初級]檢定課程</span>
+            <span class="pill">目前 3 人</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn">返回名單</span>
+        </div>
+      </div>
+
+      <div class="mode-tabs" data-prefix="roster" role="tablist">
+        <button type="button" class="active" data-add="single">單筆加入</button>
+        <button type="button" data-add="batch">批次上傳</button>
+      </div>
+
+      <div class="add-panel">
+        <div id="roster-add-single" class="add-mode active">
+          <div class="form-grid">
+            <label class="field full">
+              Email <span class="req">＊</span>
+              <input type="email" placeholder="name@example.com" readonly />
+            </label>
+            <label class="field">
+              名 <span class="req">＊</span>
+              <input type="text" readonly />
+            </label>
+            <label class="field">
+              姓 <span class="req">＊</span>
+              <input type="text" readonly />
+            </label>
+            <label class="field full">
+              單位
+              <input type="text" placeholder="選填" readonly />
+            </label>
+          </div>
+          <div class="form-actions">
+            <span class="btn btn-primary">加入場次</span>
+          </div>
+        </div>
+
+        <div id="roster-add-batch" class="add-mode">
+          <p class="hint-line">CSV 欄位：姓、名、Email、單位。帳號＝考生編號，確認預覽後才寫入。</p>
+          <div class="form-actions" style="margin-top:0; margin-bottom:14px;">
+            <span class="btn btn-sm">下載 CSV 公版</span>
+          </div>
+          <div class="drop">
+            <strong>拖曳 CSV 到此，或選擇檔案</strong>
+            <div class="hint">.csv / .txt</div>
+            <span class="btn btn-sm">選擇檔案</span>
+          </div>
+          <div class="form-actions">
+            <span class="btn btn-primary">預覽上傳</span>
+          </div>
+
+          <!-- 預覽示意（常駐顯示方便對稿） -->
+          <div class="preview-box">
+            <div class="ph">
+              <h2>上傳預覽</h2>
+              <div class="ops">
+                <span class="btn btn-sm btn-accent">確認寫入</span>
+                <span class="btn btn-sm">取消</span>
+              </div>
+            </div>
+            <div class="preview-sum">
+              <span class="pill">共 2 人</span>
+              <span class="pill">全新 1</span>
+              <span class="pill">既有編號 1</span>
+            </div>
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>姓名</th>
+                  <th>Email</th>
+                  <th>情境</th>
+                  <th>編號</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>林小華</td>
+                  <td class="muted">hua@example.com</td>
+                  <td>全新學員</td>
+                  <td class="muted">確認後核發</td>
+                </tr>
+                <tr>
+                  <td>張大偉</td>
+                  <td class="muted">wei@example.com</td>
+                  <td>既有編號</td>
+                  <td class="id">114802</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 空名單 ========== -->
+    <section id="view-roster-empty" class="view">
+      <div class="head">
+        <div>
+          <h1>[初級]檢定課程</h1>
+          <div class="facts">
+            <span class="pill">初級</span>
+            <span class="pill">7/30 16:07</span>
+            <span class="pill">0 人</span>
+            <span class="pill ok">進行中</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-primary">新增學員</span>
+          <span class="btn">返回</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h2>學員名單</h2></div>
+        <div class="empty">
+          <strong>尚無學員</strong>
+          點「新增學員」單筆加入或批次上傳。
+          <div><span class="btn btn-primary">新增學員</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 已結束 ========== -->
+    <section id="view-roster-ended" class="view">
+      <div class="head">
+        <div>
+          <h1>[初級]檢定課程</h1>
+          <div class="facts">
+            <span class="pill">初級</span>
+            <span class="pill">7/28 09:00</span>
+            <span class="pill">6 人</span>
+            <span class="pill dim">已結束</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn btn-secondary">輸入成績</span>
+          <span class="btn btn-secondary">證書批次下載</span>
+          <span class="btn btn-secondary">返回</span>
+        </div>
+      </div>
+      <div class="alert-slim">場次已結束：不可新增／移除學員；通過狀態與證書下載仍可用。</div>
+      <div class="panel">
+        <div class="ph">
+          <h2>學員名單</h2>
+          <div class="ops">
+            <span class="btn btn-sm btn-primary">證書批次下載</span>
+          </div>
+        </div>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>考生編號</th>
+              <th>Email</th>
+              <th>單位</th>
+              <th>通過</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>王美</td>
+              <td class="id">115045</td>
+              <td class="muted">mei.wang@example.com</td>
+              <td>台中高工</td>
+              <td><span class="pill ok">通過</span></td>
+              <td><span class="btn btn-sm btn-primary">下載證書</span></td>
+            </tr>
+            <tr>
+              <td>李強</td>
+              <td class="id">115046</td>
+              <td class="muted">qiang.li@example.com</td>
+              <td>台北科大</td>
+              <td><span class="pill bad">未通過</span></td>
+              <td class="muted">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    
+    </section>
+
+
+    <section class="sec" id="sec-scores" hidden>
+      <div class="sec-title">輸入成績</div>
+      <div class="roles subnav" data-prefix="scores" role="tablist">
+      <button type="button" class="active" data-view="scores-scores">有筆試</button>
+      <button type="button" data-view="scores-practical-only">僅術科</button>
+      <button type="button" data-view="scores-empty">尚無名單</button>
+    </div>
+
+    <!-- ========== 有筆試 ========== -->
+    <section id="view-scores-scores" class="view active">
+      <div class="head">
+        <div>
+          <h1>輸入成績</h1>
+          <div class="facts">
+            <span class="pill">[初級]檢定課程</span>
+            <span class="pill">及格 80</span>
+            <span class="pill">3 人</span>
+            <span class="pill info">需筆試</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn">返回名單</span>
+        </div>
+      </div>
+
+      <p class="hint">筆試由 Moodle 測驗讀取；請輸入術科分數後儲存。</p>
+
+      <div class="panel">
+        <div class="ph">
+          <h2>學員成績</h2>
+          <span class="sub">術科 ≥ 80 為通過</span>
+        </div>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>考生編號</th>
+              <th class="num">術科分數</th>
+              <th>術科</th>
+              <th>筆試</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="name">王美</td>
+              <td class="id">115045</td>
+              <td class="num"><input class="score-input" type="text" value="90" readonly /></td>
+              <td><span class="pill ok">通過</span></td>
+              <td><span class="pill bad">未通過 30</span></td>
+            </tr>
+            <tr>
+              <td class="name">李強</td>
+              <td class="id">115046</td>
+              <td class="num"><input class="score-input" type="text" value="78" readonly /></td>
+              <td><span class="pill bad">未通過</span></td>
+              <td><span class="pill ok">通過 85</span></td>
+            </tr>
+            <tr>
+              <td class="name">陳雅婷</td>
+              <td class="id">115047</td>
+              <td class="num"><input class="score-input" type="text" value="" placeholder="—" readonly /></td>
+              <td><span class="pill dim">未輸入</span></td>
+              <td><span class="pill dim">尚無成績</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="foot">
+          <span class="note">空白列不儲存</span>
+          <div class="ops">
+            <span class="btn">返回名單</span>
+            <span class="btn btn-primary">儲存成績</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 僅術科 ========== -->
+    <section id="view-scores-practical-only" class="view">
+      <div class="head">
+        <div>
+          <h1>輸入成績</h1>
+          <div class="facts">
+            <span class="pill">[中級]檢定課程</span>
+            <span class="pill">及格 90</span>
+            <span class="pill">2 人</span>
+            <span class="pill dim">不需筆試</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn">返回名單</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <h2>學員成績</h2>
+          <span class="sub">術科 ≥ 90 為通過</span>
+        </div>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>考生編號</th>
+              <th class="num">術科分數</th>
+              <th>術科</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="name">林小華</td>
+              <td class="id">114802</td>
+              <td class="num"><input class="score-input" type="text" value="92" readonly /></td>
+              <td><span class="pill ok">通過</span></td>
+            </tr>
+            <tr>
+              <td class="name">張大偉</td>
+              <td class="id">114810</td>
+              <td class="num"><input class="score-input" type="text" value="88" readonly /></td>
+              <td><span class="pill bad">未通過</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="foot">
+          <span class="note">空白列不儲存</span>
+          <div class="ops">
+            <span class="btn">返回名單</span>
+            <span class="btn btn-primary">儲存成績</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 空 ========== -->
+    <section id="view-scores-empty" class="view">
+      <div class="head">
+        <div>
+          <h1>輸入成績</h1>
+          <div class="facts">
+            <span class="pill">[初級]檢定課程</span>
+            <span class="pill">及格 80</span>
+            <span class="pill">0 人</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <span class="btn">返回名單</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h2>學員成績</h2></div>
+        <div class="empty">
+          <strong>尚無學員</strong>
+          請先至名單新增學員後再輸入成績。
+          <div><span class="btn btn-primary">前往名單</span></div>
+        </div>
+      </div>
+    </section>
+
+    
+    </section>
+
+
+    <section class="sec" id="sec-cert" hidden>
+      <div class="sec-title">證書日期分級 · 申請開課</div>
+      <div class="roles subnav" data-prefix="cert" role="tablist">
+      <button type="button" class="active" data-view="cert-admin">Admin · 講師等級授權</button>
+      <button type="button" data-view="cert-mycert">我的證書</button>
+      <button type="button" data-view="cert-apply">申請開課</button>
+    </div>
+
+    <!-- ========== Admin ========== -->
+    <section id="view-cert-admin" class="view active">
+      <div class="head">
+        <h1>講師等級授權</h1>
+        <p class="sub">每個等級各自維護「取得日／Renew 日」；效期依該等級月數分別計算。</p>
+      </div>
+
+      <div class="person">
+        <div class="person-h">
+          <div>
+            <div class="name">王老師</div>
+            <div class="email">wang@example.com</div>
+          </div>
+          <span class="pill">效期月數：初 12／中 12／高 12</span>
+        </div>
+        <div class="level-grid">
+          <div class="level-card">
+            <div class="lv-top">
+              <span class="lv-name">初級</span>
+              <label class="chk"><input type="checkbox" checked disabled /> 採認</label>
+            </div>
+            <label class="field"><span>取得證書日</span><input type="date" value="2025-07-29" readonly /></label>
+            <label class="field"><span>Renew 日</span><input type="date" value="" readonly /></label>
+            <div style="margin-top:8px;">
+              <span class="pill ok">有效 · 至 2026-07-29</span>
+            </div>
+          </div>
+          <div class="level-card">
+            <div class="lv-top">
+              <span class="lv-name">中級</span>
+              <label class="chk"><input type="checkbox" checked disabled /> 採認</label>
+            </div>
+            <label class="field"><span>取得證書日</span><input type="date" value="2024-01-10" readonly /></label>
+            <label class="field"><span>Renew 日</span><input type="date" value="2025-12-01" readonly /></label>
+            <div style="margin-top:8px;">
+              <span class="pill ok">有效 · 至 2026-12-01</span>
+            </div>
+          </div>
+          <div class="level-card off">
+            <div class="lv-top">
+              <span class="lv-name">高級</span>
+              <label class="chk"><input type="checkbox" disabled /> 採認</label>
+            </div>
+            <label class="field"><span>取得證書日</span><input type="date" disabled /></label>
+            <label class="field"><span>Renew 日</span><input type="date" disabled /></label>
+            <div style="margin-top:8px;">
+              <span class="pill dim">未採認</span>
+            </div>
+          </div>
+        </div>
+        <div class="person-foot">
+          <span class="btn btn-primary btn-sm">儲存</span>
+        </div>
+      </div>
+
+      <div class="person">
+        <div class="person-h">
+          <div>
+            <div class="name">陳老師</div>
+            <div class="email">chen@example.com</div>
+          </div>
+        </div>
+        <div class="level-grid">
+          <div class="level-card">
+            <div class="lv-top">
+              <span class="lv-name">初級</span>
+              <label class="chk"><input type="checkbox" checked disabled /> 採認</label>
+            </div>
+            <label class="field"><span>取得證書日</span><input type="date" value="2023-06-01" readonly /></label>
+            <label class="field"><span>Renew 日</span><input type="date" value="" readonly /></label>
+            <div style="margin-top:8px;">
+              <span class="pill bad">已過期 · 需立即更新</span>
+            </div>
+          </div>
+          <div class="level-card off">
+            <div class="lv-top"><span class="lv-name">中級</span><label class="chk"><input type="checkbox" disabled /> 採認</label></div>
+            <label class="field"><span>取得證書日</span><input type="date" disabled /></label>
+            <label class="field"><span>Renew 日</span><input type="date" disabled /></label>
+          </div>
+          <div class="level-card off">
+            <div class="lv-top"><span class="lv-name">高級</span><label class="chk"><input type="checkbox" disabled /> 採認</label></div>
+            <label class="field"><span>取得證書日</span><input type="date" disabled /></label>
+            <label class="field"><span>Renew 日</span><input type="date" disabled /></label>
+          </div>
+        </div>
+        <div class="person-foot">
+          <span class="btn btn-primary btn-sm">儲存</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 我的證書 ========== -->
+    <section id="view-cert-mycert" class="view">
+      <div class="head">
+        <h1>我的證書</h1>
+        <p class="sub">講師認證依等級分列；不再共用一組日期，也不顯示「授課自動延長」說明句。</p>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><h2>講師認證</h2></div>
+        <div class="cert-row">
+          <div>
+            <div class="title">初級</div>
+            <div class="meta">
+              <span>取得日 <b>2025-07-29</b></span>
+              <span>Renew <b>—</b></span>
+              <span>效期 <b>12 個月</b></span>
+              <span>更新期限 <b>2026-07-29</b></span>
+            </div>
+          </div>
+          <span class="pill ok">有效</span>
+        </div>
+        <div class="cert-row">
+          <div>
+            <div class="title">中級</div>
+            <div class="meta">
+              <span>取得日 <b>2024-01-10</b></span>
+              <span>Renew <b>2025-12-01</b></span>
+              <span>效期 <b>12 個月</b></span>
+              <span>更新期限 <b>2026-12-01</b></span>
+            </div>
+          </div>
+          <span class="pill ok">有效</span>
+        </div>
+        <div class="cert-row">
+          <div>
+            <div class="title">高級</div>
+            <div class="meta">
+              <span>尚未採認</span>
+            </div>
+          </div>
+          <span class="pill dim">未採認</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><h2>檢定證書</h2></div>
+        <div class="cert-row">
+          <div>
+            <div class="title">初級檢定證書</div>
+            <div class="meta">
+              <span>課程 <b>初級檢定</b></span>
+              <span>狀態 <b>可下載</b></span>
+            </div>
+          </div>
+          <span class="btn btn-primary btn-sm">下載</span>
+        </div>
+      </div>
+
+      <p class="hint-line strike">目前已啟用「授課自動延長效期」（最後授課日會納入計算）。 ← 刪除這句</p>
+    </section>
+
+    <!-- ========== 申請開課 ========== -->
+    <section id="view-cert-apply" class="view">
+      <div class="head">
+        <h1>申請開課</h1>
+      </div>
+
+      <div class="block-stack">
+        <!-- Block 1: course info -->
+        <div class="panel">
+          <div class="ph"><h2>課程資訊</h2></div>
+          <div class="pb">
+            <div class="form-grid">
+              <label class="field">
+                <span>檢定等級 ＊</span>
+                <select disabled><option>中級</option></select>
+              </label>
+              <label class="field">
+                <span>考場地點 ＊</span>
+                <select disabled><option>TM-001 - 達明機器人總部培訓中心</option></select>
+              </label>
+              <label class="field">
+                <span>開始</span>
+                <input type="text" value="2026-08-01 15:23" readonly />
+              </label>
+              <label class="field">
+                <span>結束</span>
+                <input type="text" value="2026-08-01 19:23" readonly />
+              </label>
+              <label class="field full">
+                <span>指定授課講師</span>
+                <select disabled><option>AI 協作型機器人 能力檢定 (aicc@tm-robot.com)</option></select>
+              </label>
+              <label class="field full">
+                <span>給審核者的備註（選填）</span>
+                <textarea readonly></textarea>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Block 2: roster -->
+        <div class="panel">
+          <div class="ph">
+            <h2>學員名單</h2>
+            <span class="btn btn-sm">下載 CSV 公版</span>
+          </div>
+          <div class="pb">
+            <p class="hint-line">選填。帳號與考生編號於申請「核准」時建立。</p>
+            <label class="field">
+              <span>批次匯入學員資料</span>
+            </label>
+            <div class="drop">
+              <strong>拖曳 CSV 到此，或選擇檔案</strong>
+              <div style="font-size:0.82rem;margin-top:4px;">.csv / .txt</div>
+              <div style="margin-top:12px;"><span class="btn btn-sm">選擇檔案</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <span class="btn btn-primary">送出申請</span>
+          <span class="btn">取消</span>
+        </div>
+      </div>
+    </section>
+
+    
+    </section>
+
+
+    <div class="footer-note">
+      <strong>維護約定</strong>
+      <ul>
+        <li>本檔為唯一 UI 提案入口：<code>docs/ui_preview.html</code>。</li>
+        <li>新畫面請追加為新「功能區」或既有區的子分頁，勿再開獨立 html。</li>
+        <li>舊檔 dashboard／roster／scores／cert_apply 預覽已整併，可刪除。</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    function showSec(sec) {
+      document.querySelectorAll(".topnav button").forEach(function (b) {
+        b.classList.toggle("active", b.getAttribute("data-sec") === sec);
+      });
+      document.querySelectorAll(".sec").forEach(function (s) {
+        s.hidden = s.id !== "sec-" + sec;
+      });
+    }
+    document.querySelectorAll(".topnav button").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        showSec(btn.getAttribute("data-sec"));
+      });
+    });
+
+    document.querySelectorAll(".subnav").forEach(function (nav) {
+      nav.querySelectorAll("button[data-view]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          nav.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          var id = "view-" + btn.getAttribute("data-view");
+          var sec = nav.closest(".sec");
+          sec.querySelectorAll(".view").forEach(function (v) { v.classList.remove("active"); });
+          var target = document.getElementById(id);
+          if (target) target.classList.add("active");
+        });
+      });
+    });
+
+    document.querySelectorAll(".mode-tabs").forEach(function (tabs) {
+      tabs.querySelectorAll("button[data-add]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          tabs.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          var panel = tabs.nextElementSibling;
+          if (!panel) panel = tabs.parentElement;
+          var root = tabs.parentElement;
+          root.querySelectorAll(".add-mode").forEach(function (m) { m.classList.remove("active"); });
+          var el = document.getElementById("roster-add-" + btn.getAttribute("data-add"));
+          if (el) el.classList.add("active");
+        });
+      });
+    });
+
+    showSec("roster");
+  </script>
+</body>
+</html>

@@ -4,18 +4,29 @@ Moodle local plugin for Techman certification exam operations.
 
 ## Status
 
-- **Release:** 0.1.0 (P1 scaffold)
-- Spec: [`../moodle_certification_plugin_prd.md`](../moodle_certification_plugin_prd.md)
-- Dashboard wireframe: [`../docs/dashboard_preview.html`](../docs/dashboard_preview.html)
+- **Release:** 0.12.10（見 `local_tm_certification/version.php`）
+- **Active branch:** `feature/certification-0.8.9`
+- **GitHub:** https://github.com/sukueichang/moodle_certification (private)
+- Spec: [`moodle_certification_plugin_prd.md`](moodle_certification_plugin_prd.md)
+- UI preview: [`docs/ui_preview.html`](docs/ui_preview.html)
+- **AI / 開發 SOP：** [`AGENTS.md`](AGENTS.md) → [`docs/DEV_WORKFLOW.md`](docs/DEV_WORKFLOW.md)（含 Windows `tar.exe` 打包）
 
 ## Install
 
 1. Copy `local_tm_certification/` to `{moodle}/local/tm_certification/`
-2. Site administration → Notifications (upgrade)
+2. Site administration → Notifications (upgrade) — need **0.11.6+**
 3. Site administration → Plugins → Local plugins → **TM 檢定管理**
    - Map Moodle roles to logical identities
    - Toggle dashboard visibility
 4. Open `/local/tm_certification/index.php`
+
+### 考生編號 on user edit (admin)
+
+After upgrading `local_tm_certification` to **0.11.6+**, open  
+`/user/editadvanced.php?id=…` — under **選擇的**, between **機構** and **科系**, you should see **考生編號**.  
+It reads/writes `local_tm_cert_candidates` only (does not change username/password).
+
+Optional (not required): `user/profile/field/tmcandidate/` is an alternate native profile-field implementation; the local plugin injects the field by itself.
 
 ## Capabilities
 
@@ -37,6 +48,9 @@ Role shortnames are **not** hard-coded — assign via plugin settings and/or Def
 - Dashboard shells: manage / instruct / examinee
 - My certificates page (empty shell)
 
-## Next (P2+)
+## Handoff for developers / AI
 
-Sessions, applications, batch enrol, candidate IDs, practical ↔ attendance, certificates.
+1. Clone this repo; work on `feature/certification-0.8.9` (or a branch cut from it).
+2. Follow [`docs/DEV_WORKFLOW.md`](docs/DEV_WORKFLOW.md): FEATURE／BUGFIX logs → implement → user **ok** → commit／push／PR.
+3. Package for Moodle upload **only** with `tar.exe` (`DEV_WORKFLOW.md` §4). Never `Compress-Archive`.
+4. Cursor users: project rules under `.cursor/rules/` apply automatically; others start from [`AGENTS.md`](AGENTS.md).

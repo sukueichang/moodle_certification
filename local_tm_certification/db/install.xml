@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/tm_certification/db" VERSION="2026083110" COMMENT="TM Certification DB Schema">
+  <TABLES>
+
+    <TABLE NAME="local_tm_cert_sessions" COMMENT="Certification exam sessions">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"
+               COMMENT="Mapped Moodle course id by level"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true"/>
+        <FIELD NAME="certlevel" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="basic"
+               COMMENT="basic | intermediate | advanced"/>
+        <FIELD NAME="venueid" TYPE="int" LENGTH="10" NOTNULL="false"
+               COMMENT="FK local_tm_cert_venues.id"/>
+        <FIELD NAME="venue" TYPE="char" LENGTH="255" NOTNULL="false"
+               COMMENT="legacy display backup"/>
+        <FIELD NAME="starttime" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="endtime" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="instructorid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"
+               COMMENT="Assigned instructor userid"/>
+        <FIELD NAME="status" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"
+               COMMENT="1=open/in progress, 0=ended"/>
+        <FIELD NAME="attendancecmid" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="attendancesessid" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="checkintoken" TYPE="char" LENGTH="64" NOTNULL="false"
+               COMMENT="Token for session QR self check-in URL"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="createdby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_starttime" UNIQUE="false" FIELDS="starttime"/>
+        <INDEX NAME="idx_status" UNIQUE="false" FIELDS="status"/>
+        <INDEX NAME="idx_instructor" UNIQUE="false" FIELDS="instructorid"/>
+        <INDEX NAME="idx_courseid" UNIQUE="false" FIELDS="courseid"/>
+        <INDEX NAME="idx_venueid" UNIQUE="false" FIELDS="venueid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_rollcall" COMMENT="Session on-site rollcall (not mod_attendance)">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="sessionid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="enrolid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="present"
+               COMMENT="present | late | absent"/>
+        <FIELD NAME="source" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="staff"
+               COMMENT="staff | self"/>
+        <FIELD NAME="timemarked" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="markedby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="uq_session_enrol" TYPE="unique" FIELDS="sessionid, enrolid"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_session" UNIQUE="false" FIELDS="sessionid"/>
+        <INDEX NAME="idx_userid" UNIQUE="false" FIELDS="userid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_enrols" COMMENT="Session examinee roster">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="sessionid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="status" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"/>
+        <FIELD NAME="practicalscore" TYPE="number" LENGTH="10" NOTNULL="false" DECIMALS="2"/>
+        <FIELD NAME="practicalpass" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="addedby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="uq_session_user" TYPE="unique" FIELDS="sessionid, userid"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_userid" UNIQUE="false" FIELDS="userid"/>
+        <INDEX NAME="idx_status" UNIQUE="false" FIELDS="status"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_venues" COMMENT="Venue master by certification level">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="venuecode" TYPE="char" LENGTH="50" NOTNULL="false"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true"/>
+        <FIELD NAME="certlevel" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="basic"/>
+        <FIELD NAME="passedat" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="active" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="createdby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="uq_venue_code_lvl" TYPE="unique" FIELDS="venuecode, certlevel"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_level" UNIQUE="false" FIELDS="certlevel"/>
+        <INDEX NAME="idx_active" UNIQUE="false" FIELDS="active"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_instlvl" COMMENT="Instructor qualification per level">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="certlevel" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="basic"/>
+        <FIELD NAME="active" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="createdby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="uq_user_level" TYPE="unique" FIELDS="userid, certlevel"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_user" UNIQUE="false" FIELDS="userid"/>
+        <INDEX NAME="idx_level" UNIQUE="false" FIELDS="certlevel"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_instrcert" COMMENT="Instructor certificate profile">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="certifiedat" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="renewedat" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="updatedby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="uq_userid" TYPE="unique" FIELDS="userid"/>
+      </KEYS>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_apps" COMMENT="Instructor course-opening applications">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="applicantid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"
+               COMMENT="User who submitted the application"/>
+        <FIELD NAME="instructorid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"
+               COMMENT="Teaching instructor (may differ from applicant)"/>
+        <FIELD NAME="certlevel" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="basic"/>
+        <FIELD NAME="venueid" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="starttime" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="endtime" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="status" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0"
+               COMMENT="0=pending, 1=approved, 2=rejected"/>
+        <FIELD NAME="sessionid" TYPE="int" LENGTH="10" NOTNULL="false"
+               COMMENT="Created session id after approve"/>
+        <FIELD NAME="applicantnote" TYPE="text" NOTNULL="false"/>
+        <FIELD NAME="managernote" TYPE="text" NOTNULL="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timesubmitted" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timereviewed" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="reviewedby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timedeleted" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"
+               COMMENT="0=visible to applicant; unix time when soft-deleted (admin still sees)"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_status" UNIQUE="false" FIELDS="status"/>
+        <INDEX NAME="idx_applicant" UNIQUE="false" FIELDS="applicantid"/>
+        <INDEX NAME="idx_instructor" UNIQUE="false" FIELDS="instructorid"/>
+        <INDEX NAME="idx_sessionid" UNIQUE="false" FIELDS="sessionid"/>
+        <INDEX NAME="idx_timedeleted" UNIQUE="false" FIELDS="timedeleted"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_candidates" COMMENT="Lifelong examinee candidate IDs">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="candidateid" TYPE="char" LENGTH="20" NOTNULL="true"
+               COMMENT="ROC year 3 digits + serial 3 digits"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="createdby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="uq_userid" TYPE="unique" FIELDS="userid"/>
+        <KEY NAME="uq_candidateid" TYPE="unique" FIELDS="candidateid"/>
+      </KEYS>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_app_learners" COMMENT="Draft examinee roster attached to an application">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="applicationid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="email" TYPE="char" LENGTH="100" NOTNULL="true"/>
+        <FIELD NAME="firstname" TYPE="char" LENGTH="100" NOTNULL="true"/>
+        <FIELD NAME="lastname" TYPE="char" LENGTH="100" NOTNULL="true"/>
+        <FIELD NAME="institution" TYPE="char" LENGTH="255" NOTNULL="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="candidateid" TYPE="char" LENGTH="20" NOTNULL="false"/>
+        <FIELD NAME="scenario" TYPE="char" LENGTH="20" NOTNULL="false"
+               COMMENT="new | issue_id | keep_id"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_app" UNIQUE="false" FIELDS="applicationid"/>
+        <INDEX NAME="idx_email" UNIQUE="false" FIELDS="email"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_pwbackup" COMMENT="Pre-roster password hash backup for existing accounts">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="passwordhash" TYPE="char" LENGTH="255" NOTNULL="true"
+               COMMENT="Moodle user.password hash before Tmai reset"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="uq_userid" TYPE="unique" FIELDS="userid"/>
+      </KEYS>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_assess_comp" COMMENT="Per-level assessment blueprint components">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="certlevel" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="basic"
+               COMMENT="basic | intermediate | advanced"/>
+        <FIELD NAME="code" TYPE="char" LENGTH="40" NOTNULL="true"
+               COMMENT="Stable key within level, e.g. written / practical / practical_b"/>
+        <FIELD NAME="type" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="manual"
+               COMMENT="quiz | manual"/>
+        <FIELD NAME="label" TYPE="char" LENGTH="255" NOTNULL="true"/>
+        <FIELD NAME="passscore" TYPE="number" LENGTH="10" NOTNULL="true" DEFAULT="0" DECIMALS="2"/>
+        <FIELD NAME="required" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"/>
+        <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="quizcmid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"
+               COMMENT="course_modules.id: quiz for type=quiz; attendance for manual/attendance"/>
+        <FIELD NAME="active" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="uq_level_code" TYPE="unique" FIELDS="certlevel, code"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_level_active" UNIQUE="false" FIELDS="certlevel, active"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="local_tm_cert_assess_res" COMMENT="Per-enrol manual assessment component scores">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="enrolid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="componentid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="score" TYPE="number" LENGTH="10" NOTNULL="false" DECIMALS="2"/>
+        <FIELD NAME="passed" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="modifiedby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="uq_enrol_comp" TYPE="unique" FIELDS="enrolid, componentid"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_enrol" UNIQUE="false" FIELDS="enrolid"/>
+        <INDEX NAME="idx_component" UNIQUE="false" FIELDS="componentid"/>
+      </INDEXES>
+    </TABLE>
+
+  </TABLES>
+</XMLDB>
